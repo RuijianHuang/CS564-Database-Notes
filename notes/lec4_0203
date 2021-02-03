@@ -1,0 +1,187 @@
+Lec 4 02/03
+
+Outline
+    SQL: set operators
+        UNION/EXCEPT/INTERSECT
+        duplicates in SQL
+    SQL: nested queries
+        IN/EXISTS/ALL
+        correlated queries
+
+Set operators
+    Set operations
+        union({1, 2}, {3, 4}) = {1, 2, 3, 4}
+        intersection({1, 2, 3}, {1, 2}) = {1, 2}
+        difference
+            {1, 2, 3} - {1, 2, 4, 5} = {3}
+            {1, 2, 4, 5} - {1, 2, 3} = {4, 5}
+
+    Set operators in SQL
+        Syntax
+            (subquery) INTERSECT (subquery)
+            (subquery) UNION (subquery)
+            (subquery) EXCEPT (subquery)
+            e.g.:
+                SELECT A FROM R
+                INTERSECT/UNION/EXCEPT
+                SELECT B FROM S;
+
+        INTERSECT
+            Returns tuples that belong in both subquery result
+        UNION
+            Return tuples that belong in either subquery result
+        EXCEPT
+            Return tuples that belong in the 1st but not the 2nd subquery result
+    
+    Keyword ALL
+        When using set operators, SQL eliminates all duplicate tuples.
+        This can be changed by using ALL.
+        The operators are evaluated using multiset/bag semantics.
+        Syntax:
+            (subquery) INTERSECT ALL (subquery)
+            (subquery)     UNION ALL (subquery)
+            (subquery)    EXCEPT ALL (subquery)
+            e.g.
+                SELECT A FROM R
+                INTERSECT/UNION/EXCEPT ALL
+                SELECT A FROM S;
+        
+        INTERSECT ALL
+            The number of copies of each tuple is the min of the numbers of 
+            copies in the subqueries
+            i.e.  
+                len(copies(? in query_result)) = min(len(copies(? in A)), 
+                                                     len(copies(? in R)))
+            e.g.
+                Table R: Column A = {1, 1, 1, 2, 3}
+                Table S: Column A = {1, 1, 2, 2, 4, 5}
+                Above query with 'INTERSECT ALL' yields {1, 1, 2}
+
+        UNION ALL
+            The number of copies of each tuple is the sum of the number of 
+            copies in the subqueries
+            i.e. 
+                len(copies(? in query_result)) = len(copies(? in A)) + len(copies(? in R))
+            e.g. 
+                Table R: Column A = {1, 1, 1, 2, 3}
+                Table S: Column A = {1, 1, 2, 2, 4, 5}
+                Above query with 'INTERSECT ALL' yields {5*1, 3*2, 3, 4, 5}
+                
+        EXCEPT ALL
+            The number of copies of each tuple is difference (if positive) of
+            the number of copies in the subqueries.
+            i.e. 
+                len(copies(? in query_result)) = max(0, len(copies(? in A)) - len(copies(? in R)))
+            e.g. 
+                Table R: Column A = {1, 1, 1, 2, 3}
+                Table S: Column A = {1, 1, 2, 2, 4, 5}
+                Above query with 'INTERSECT ALL' yields {1, 3}
+
+        
+Example databases
+    Sailors (sid:integer, sname:string, rating:integer, age:real)
+    Boats   (bid:integer, bname:string, color: string)
+    Reserves(sid:integer, bid:integer, day:date)
+    
+    Queries:
+        Find the names of sailors who have reversed a red or a green boat.
+            SQL:    SELECT  DISTINCT S.name                 // if no DISTINCT, there would be duplicates, if any
+                    FROM    Sailors S, Boats B, Reserves R
+                    WHERE   R.sid = S.sid
+                     AND    R.bid = B.bid
+                     AND    (B.color = 'red' OR B.color = 'blue');
+
+            SQL:    SELECT  S.name                          // if no strong optimizer in DBMS, this is slower
+                    FROM    Sailors S, Boats B, Reserves R
+                    WHERE   R.sid = S.sid AND R.bid = B.bid AND B.color = 'red'
+                 -> UNION
+                    SELECT  S.name
+                    FROM    Sailors S, Boats B, Reserves R
+                    WHERE   R.sid = S.sid AND R.bid = B.bid AND B.color = 'blue';
+
+        Find the names of sailors who have reserved red boats but not green.
+        (as one can reserve multiple boats)
+            SQL:    SELECT  S.name
+                    FROM    Sailors S, Boats B, Reserves R
+                    WHERE   R.sid = S.sid AND R.bid = B.bid AND B.color = 'red'
+                 -> EXCEPT
+                    SELECT  S.name
+                    FROM    Sailors S, Boats B, Reserves R
+                    WHERE   R.sid = S.sid AND R.bid = B.bid AND B.color = 'green';
+
+Nested Queries
+    A parenthesized SELECT-FROM-WHERE statement (subquery) can be used as a value in
+        FROM clause
+        WHERE clause
+    Since everything in SQL can be represented as a multiset, we can do
+        nesting:    output of one query used as the input to another
+        unnesting:  equivalent SQL query that does not use nesting
+    
+    e.g. from above example
+            Find the names of sailors who have reserved boat 103.
+            SQL:
+                    SELECT  DISTINCT S.name
+                    FROM    Sailors S, Reserves R
+                    WHERE   R.sid = S.sid
+                     AND    R.bid = 103;
+            Nested-Queries
+                    SELECT  DISTINCT S.name                 // outer query
+                    FROM    Sailors S
+                    WHERE   S.sid IN (SELECT  R.sid         // inner query
+                                      FROM    Reserves R
+                                      WHERE   R.bid = 103);
+    
+Set comparison operators
+    IN (NOT IN)
+    EXISTS (NOT EXISTS)
+    <op> ANY      // <op> can be one of <, <=, = <>, >=, >
+    <op> ALL
+    
+    EXISTS
+        Used to test for the existence of any record in a subquery.
+        Returns true of the subquery returns one or more records.
+        e.g.
+            Find the names of sailors who have reserved boat 103 with set comparison operators
+                SELECT  DISTINCT S.sname            // FIXME: tf is this?
+                FROM    Sailors S
+                WHERE   EXISTS (SELECT *
+                                FROM Reserves R
+                                WHERE R.bid = 103
+                                  AND R.sid = S.sid);      // correlated subquery: S is used in inner query too
+            Equivalent to:
+                SELECT  DISTINCT S.sname
+                FROM    (SELECT R.sid
+                         FROM   Reserves R
+                         WHERE  R.bid = 103) AS Temp, Sailors S
+                WHERE   S.sid = Temp.sid;
+        
+        
+    <op> ANY
+        Find sailors whose rating is better than SOME sailors called 'Somename'
+            * multiple sailors may be called 'Somename'
+            SELECT  DISTINCT S.sname
+            FROM    Sailors S
+            WHERE   S.rating > ANY (SELECT  S2.rating           // equivalent to MIN()?
+                                    FROM    Sailors S2
+                                    WHERE   S2.sname = 'Somename');
+
+    <op> ALL
+        Find sailors whose rating is better than EVERY sailors called 'Somename'
+            * multiple sailors may be called 'Somename'
+            SELECT  DISTINCT S.sname
+            FROM    Sailors S
+            WHERE   S.rating > ALL (SELECT  S2.rating
+                                    FROM    Sailors S2
+                                    WHERE   S2.sname = 'Somename');
+
+    More example
+        Find the names of Sailors who have reserved all boats.
+            SELECT  DISTINCT S.sname                // FIXME: tf is this?
+            FROM    Sailors S
+            WHERE   NOT EXISTS (SELECT  B.bid
+                                FROM    Boats B
+                                WHERE   NOT EXISTS (SELECT  R.bid 
+                                                    FROM    Reserves R
+                                                    WHERE   R.bid = B.bid
+                                                      AND   R.sid = S.sid));
+
