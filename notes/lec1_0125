@@ -1,0 +1,28 @@
+Lec 1 01/25
+
+Database instance example
+    Entities:
+        Students, faculty, courses, classroom
+
+    Relationships
+        Enroll:     Students enroll courses
+        Teach:      Faculty teaches courses
+        Use:        Courses use classroom
+
+Plan for the semester
+    User's perspective
+        CCU
+
+    Database internals
+        How is the data physically stored [w: 6]
+        Data access methods [w: 7-8]
+        Implementation and optimization of queries [w: 9-10]
+        Ingestion and updates of data [w: 11-12]
+        Advanced topics and guest lectures [w: 13]
+
+    DB used for this class: ipython-SQL
+        
+Example databases
+    oracle, Microsoft SQL server, PostgreSQL, MySQL, IBM DB2, 
+    Amazon Redshit, SQLite, Cloud Spanner, SingleStore, VERTICA, 
+    snowflake, Amazon Aurora, mongoDB, Spark SQL, presto

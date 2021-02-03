@@ -1,0 +1,124 @@
+lec 2 01/27
+
+SQL: Basic I
+    Relational Model
+        SQL: Basics 
+            Creating a table
+        SQL: Single-table queries
+            SELECT-FROM-WHERE structure
+            DISTINCT/ORDER BY/LIMIT
+
+Definitions
+    Database:
+        A collection of one or more relations, where each relation is a table 
+        with rows and columns
+        Simple, elegant, and well-suited for efficient manipulations on 
+        computers
+    
+    Relation:
+        A table with rows and columns
+    
+    Row == tuple == record
+    Column == attribute == field
+
+    Domain:
+        Each attribute has an specific type called domain
+        E.g. integer, string, real
+            PRODUCT(
+                name: string,
+                category: string,
+                price: real,
+                manufacturer: string)
+    
+    Schema
+        The schema of a relation (table)
+            - relation names + attribute names
+            - Product(name, price, category, manufacturer)
+        The schema of a database:
+            - A collection of relation schemas
+
+    Primary keys
+        A primary key is a selected subset of attributes that is an unique 
+        identifier of tuples in a relation.
+
+Structured Query Language (SQL)
+    API types
+        DDL: Data Definition Language
+            - Creation, deletion, modification of definitions of tables
+        
+        DML: Data Manipulation Language (DML)
+            - Query
+            - Insert, delete, and update rows
+    
+    Create a table
+        CREATE TABLE <table_name> (
+            <attribute 1> <attribute 1 domain> <optional ...>,
+            <attribute 2> <attribute 2 domain> <optional ...>,
+            <attribute 3> <attribute 3 domain> <optional ...>,
+            <attribute 4> <attribute 4 domain> <optional ...>
+        );
+        
+        Unique_keys
+            CREATE ... (
+                ... Primary key,
+                name domain UNIQUE,
+                ...
+            );
+
+    Insert to a table
+        Insert a single tuple
+            INSERT INTO <relation> VALUES 
+                (<list of values>),
+                (<list of values>),
+                (<list of values>),
+                (<list of values>),
+                (<list of values>);
+
+Basic SQL Query
+    SELECT  [DISTINCT] attributes
+    FROM    one or more tables
+    WHERE   conditions on the tables
+    
+    * in SELECT: 
+        select all attributes
+
+    Renaming attributes: 
+        SELECT <some attribute> AS <some other name for this attribute>
+
+    Arithmetic Expressions
+        E.g. SELECT sname, (60-age) AS YearToRetire FROM Sailors WHERE ...;
+
+    WHERE clause operations
+        Can use attribute names of relation that appear in the FROM clause
+        Comparison operators:
+            =, >, <, <=, >=, <> (not equal)
+        Arithmetic operations:
+            +, -, /, *
+        Combine conditions:
+            AND, OR, NOT
+        Operations on strings: 
+            Concatenation, etc.
+        Pattern matching:
+            LIKE
+                % = any sequence of characters
+                _ = any single character
+            E.g.: ... LIKE '%something%'
+        Special functions for comparing dates and times
+
+    DISTINCT in SELECT
+        Use DISTINCT in SELECT clause to removes duplicates
+
+    ORDER BY 
+        Orders the tuples by the attribute we specify in 
+            DESC: decreasing
+            ASC: increasing
+        order.
+
+    LIMIT <number>
+        Limits the output to be a specified number of tuples
+        Usually used with ORDER BY to get the top k records
+        
+        
+
+
+        

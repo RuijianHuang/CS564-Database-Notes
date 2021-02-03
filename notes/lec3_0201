@@ -1,0 +1,141 @@
+lec 3 02/02
+SQL: basics II - multi-table operations
+
+Outlines
+    integrity constraint
+    multiple relations
+        foreign_keys
+        join
+
+Integrity constraint (IC)
+    def: 
+        a condition specified on a database schema and restricts the data that 
+        can be stored in an instance of the database
+        e.g. primary key, unique[]
+    IC specification
+        IC are specified when the user defines a database schema
+    IC enforcement 
+        when a database application run, the DBMS checks for violations and 
+        disallows changes to the data that violate the specified ICs
+        (or make compensating changes to the data to ensure all ICs ar:qe satisfied)
+
+Multiple relations
+    ex
+      Table 1:
+        create table Students (                   or create table Students (
+            sid     char(20),                            sid     char(20)    primary key,
+            name    char(20),                            name    char(20),
+            age     integer,                             age     integer,
+            gpa     real,                                gpa     real,
+            unique(name, age),                           unique(name, age)
+            constraint StudentsKey primary key (sid) )
+        )
+      # note that there can only be one 'inline' IC, 
+      # if more than one is needed need to put at the end
+
+      Table 2:
+        create table Enrolled (
+            cid     char(20)    primary key,
+            grade   char(20),
+            sid     char(20),
+            primary key (sid, cid),
+            foreign key (sid) references Students
+        )
+    
+Foreign keys
+    Format
+        FOREIGN KEY (<list of attributes>)
+        REFERENCES <relation> (<attributes>)
+    
+    Foreign key constraint
+        foreign_key in the referencing_relation (Enrolled) must match
+        primary_key of the referenced_relation (Students)
+          - must have the same number of columns and comparible data type
+          - the column names can be different
+        
+        foreign_key (i.e. sid) must reference a valid, existing key in the 
+        referenced table (i.e., Students.sid).
+    
+    Foreign key constraint violations
+      + A row is inserted to referencing_relation (Enrolled) and references 
+        value that does not exist in referenced_relation (Students)
+          -> The insert command would be rejected (no action required)
+
+      + A deletion or update to referenced_relation (Students) causes some 
+        tuples of referencing_relation (Enrolled) to dangle
+          Possible solutions
+            1. Disallow the deletion of referenced_relation (Students) row
+            2. Delete rows in referencing_relation (Enrolled) that refer to 
+               the deleted referenced_relation (Students) row
+            3. Set corresponding foreign_key (sid) to some existing default value
+            4. Set corresponding foreign_key (sid) column to null
+    
+    Enforce FK constraints
+        1. ON DELETE/UPDATE NO ACTION
+            disallow the deletion of referenced_relation row
+
+        2. ON DELETE/UPDATE CASCADE
+            delete/update rows in referencing_relation that refer to the deleted row
+
+        3. ON DELETE/UPDATE SET DEFAULT
+            set corresponding foreign_key to default value
+            default can be initialized as: 
+                sid CHAR(20) DEFAULT '53366'
+
+        4. ON DELETE/UPDATE SET NULL
+            set corresponding foreign_key column to null
+        
+        Ex
+            create table Enrolled (
+                sid char(20),
+                cid char(20),
+                grade char(10),
+                primary key (sid, cid),
+                foreign key (sid) references Students
+                    on delete cascade
+                    on update no action
+            )
+            - SQL: update student set sid = 50001 where sid = 53666
+                -> update would be rejected
+
+            - SQL: delete from Students where sid = 53832
+                -> rows in Enrolled where sid = 53832 would be deleted
+
+Multi-Table Queries
+
+    ex: given Enrolled, Students
+        What are the names of students who got A in EE101?
+        SQL w/o JOIN:
+              SELECT  S.name
+              FROM    Students S, Enrolled E
+              WHERE   S.sid = E.sid
+                AND   E.grade = 'A'
+                AND   E.cid = 'EE101'
+
+        What are the IDs of students who got higher grade in EE101 than EE102?
+              SELECT  E1.sid
+              FROM    Enrolled E1, Enrolled E2
+              WHERE   E1.sid = E2.sid
+                AND   E.cid = 'EE101'
+                AND   E.cid = 'EE102'
+                AND   E1.grade > E2.grade
+    
+    Semantics: SELECT-FROM-WHERE
+      1. start with the cross product (all combinations) of all the relations in the FROM clause
+      2. apply the conditions from the WHERE clause
+      3. project onto the list of attributes and expressions in the SELECT clause
+      4. if DISTINCT is specified, eliminate duplicate rows
+      
+      Implementation 'analogy': nested loop     // which is not what actually happened
+        SELECT  a1, a2, ..., ak
+        FROM    R1, R2, ..., Rn
+        WHERE   conditions
+        ~=
+        answer = {}
+        for i1 in R1:
+          for i2 in R2:
+            ...
+              for in in Rn:
+                if conditions:
+                  return union(answer, {a1, a2, ..., ak})
+        
