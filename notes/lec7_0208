@@ -1,0 +1,82 @@
+lec 7 02/08
+
+Week 3-4
+    ER Model I - ER model basics, key constraints
+    ER Model II - More features on ER models
+    Functional Dependency
+    Normalization I
+    Normalization II
+
+outline
+    Database design steps
+    ER model basics
+        Attributes, Entity, and relationship
+        Multi-way relationship
+        Key constraints
+
+Database Design
+  * Requirements Analysis
+        Data stored, operations, apps, ...
+  * Conceptual Database Design
+        Model high-level description of the data, constraints, ER model
+  * Logical Database Design
+        Choose a DBMS and design a database schema
+  * Schema Refinement
+  * Physical Database Design
+  * Application and Security Design
+
+Entity-Relationship (ER) Model
+    A visual language to specify
+        what info the DB must hold
+        what are the relationships among components of that info
+    Proposed by Perter Chen in 1976
+        relational model was proposed in 1969
+
+ER Model Basics
+    Entity
+        distinguishable real-world object
+
+    Entity Set
+        a collection of similar entities
+        all entities in an entity set have the same set of attributes
+            (until we consider ISA hierarchies)
+        represented by rectangles
+
+    Attribute
+        represented by ovals attached to an entity set
+
+Entity Sets and Attributes
+    - entities are not explicitly represented in E/R diagrams
+    e.g.            (see figures in L7.pdf)
+        r:product
+            o:price
+            o:name
+            o:category
+        r:company
+            o:name
+            o:stockprice
+        r:person
+            o:name
+            o:address
+            o:ssn
+
+    Relationships
+        company     makes   product
+        person      buys    product
+        company     employs person
+
+Key Constraints
+    types               notations:
+        one-one             rec with 2 arrows
+        many-one            rec with 1 arrow pointing one
+        many-many           rec with 0 arrow
+
+Descriptive Attribute in Relationships
+    Record info about the relationship, rather than about any one of participating
+    entities.
+    e.g.
+        Place where a Product is made by a Company.
+        Date a Boat is reserved by a Sailor.
+
+    more examples (see L7.pdf)
+    

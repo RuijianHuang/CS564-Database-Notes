@@ -1,0 +1,59 @@
+lec 8 02/10
+
+Outline
+    Roles in relationships
+    Participation Constraints
+    Weak Entities
+    Class Hierarchies
+
+Roles in Relationship
+    Label the edges to indicate the roles if an entity set plays more than one role.
+    e.g. 
+        In a table that stores employee info, there can be an additional 
+        relationship between employees, for example supervisor-subordinates.
+
+Participation Constraints
+    Motivation
+        e.g.: each department has at most one manager
+        How to express the constraint that each department must have >=1 manager?
+        - participation constraint
+
+    Types
+        Total participation
+            Every entity participles at least one relationship
+                - We use a thick line to represent a total participation
+        Partial participation
+            A participation that is not total is said to be partial
+            i.e. there is some entities that do not participate in the 
+                relationship specified.
+
+    
+Weak Entities
+    A weak entity can be identified uniquely only by considering only by 
+    considering some of its attributes in conjunction with the primary key of 
+    another entity
+        Owner entity set
+        Weak entity set
+    Restrictions
+        Weak entity set must participate in one-to-many relationship set
+        Weak entity set must have total participation
+    Weak entity set and the associated relationship are drawn with dark lines.
+
+Class Hierarchy
+    Superclass: Product
+    Subclass:   Software product, Educational product
+    
+    Notation: "ISA", which means 'is a', in a triangle
+    
+    e.g.
+        option 1
+            product(name, price, category)
+            softwareProduct(name, price, category, version)
+            educationalProduct(name, category, price, age-group)
+        option 2
+            product(name, price, category)
+            softwareProduct(name, version)
+            educationalProduct(name, age-group)
+        option 3
+            product(name, price, category, version, age-group)
+            - use NULL to denote that the attribute makes no sense for a specific tuple
