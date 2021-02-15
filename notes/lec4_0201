@@ -35,7 +35,7 @@ Multiple relations
 
       Table 2:
         create table Enrolled (
-            cid     char(20)    primary key,
+            cid     char(20),
             grade   char(20),
             sid     char(20),
             primary key (sid, cid),
