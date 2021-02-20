@@ -1,0 +1,161 @@
+lec 11 02/17
+
+Plans(Week3-4)
+    ER Model I
+    ER Model II
+    Functional Dependency
+    Normalization I             // this lec
+        Use FDs to decompose the relations
+        Lossless join
+        BCNF
+    Normalization II            // lec 12
+        Dependency Preserving
+        3NF
+
+Outline
+    Decomposition
+    Lossless-join Decomposition
+    Boyce-Codd Normal Form (BCNF)
+    Normalization
+        Decompose into BCNF
+
+
+Decomposition
+    We can decompose a relation into multiple relations.
+    
+    Properties of good decomposion
+      - Minimize redundancy
+      - Avoid information loss
+            Lossless-join
+      - Preserve the FDs
+            Dependency preserving
+      - Ensure good query performance
+
+    Lossy Decomposition
+        From:   name, age, phoneNumber
+        To:     name, age & age, phoneNumber
+        Problem: cannot figure out which phoneNumber corresponds to which person.
+
+    Decomposition and Normal Form
+        Possible ways to decompose a relation into a certain normal form s.t. 
+        the important properties are maintained.
+                Lossless-join   Dependency-preserving
+        BCNF        Yes             Not Always
+        3NF         Yes               Yes
+
+Lossless-join Decomposition
+    A schema decomposition is lossless-join if R=R' for any initial instance R.
+        R  = original schema
+        R' = schema after decomposition and then recovery(natural join)
+        Natural join: a join on the same attribute names
+
+    Test for lossless-join
+        Theorem
+            Let R be a relation and F be a set of FDs that hold over R.
+            The decomposition of R into relations with attribute sets R1 and R2 
+            is lossless IFF F+ contains
+                either  the FD R1 intersect R2 -> R1
+                or      the FD R1 intersect R2 -> R2.
+
+            i.e.
+              - The attributes common to R1 and R2 must contain a key for either R1
+                or R2
+
+            e.g.
+              - If an FD X->Y holds over a relation R and X intersect Y is empty, 
+                the decomposition of R into R-Y and XY is lossless.
+
+              - R(ssn, name, rating, hourly_wages, hours_worked)
+                    rating -> hourly_wages
+                    R1(ssn, name, rating, hours_worked)
+                    R2(rating, hourly_wages)
+
+    Repeated Decomposition
+        R(A, B, C, D)
+            FD1: A -> B
+            FD2: C -> D
+        Decompose R into R1(A, C, D) and R2(A, B)
+        Decompose R1 into R11(A, C) and R12(C, D)
+
+        R1 = R11 joins R12
+        R = R1 joins R2
+
+    Ex.
+        R(A, B, C, D)
+            FD: A, B -> C
+        Are the following decompositions lossless?
+            R1(A, B, C), R2(D)
+            R1(A, B, D), R2(B, C)
+            R1(A, B, D), R2(A, B, C)
+            R1(A, B, C), R2(B, C, D)
+
+
+Boyce-Codd Normal Form (BCNF)
+    Definition
+        A relation R is in _BCNF_ if whenever X->B is a non-trivial FD, then X
+        is a superkey in R.
+        
+        equivalent definition:
+            for every attribute set X
+                either  X+ = X
+                or      X+ = all attributes
+    RMK:
+        The only nontrivial dependencies are those in which a key determines 
+        some attributes.
+        BCNF has no redundancy w.r.t. functional dependencies.
+    
+    Examples
+        1. 
+            relation: ssn, name, age, phoneNumber
+            FD: ssn -> name, age
+            key: {ssn, phoneNumber}
+            Conclusion: this is not in BCNF since x, in this case ssn, is not a 
+            superkey in this relation.
+        2.
+            relation: ssn, name, age
+            FD: ssn -> name, age
+            key: {ssn}
+            Conclusion: this is in BCNF, since x, ssn, is the superkey.
+        3. 
+            relation: ssn, phoneNumber
+            key: {ssn, phoneNumber}
+            Conclusion: this is in BCNF, since there is no non-trivial FDs 
+            except the implied: {ssn, phoneNumber} -> {ssn, phoneNumber}
+
+        Caveat:
+            Cannot infer functional dependencies from data themselves.
+
+Normalization
+    Decomposition into BCNF
+        Find an FD that violates the BCNF condition
+            A1, ..., An -> B1, ..., Bn
+        Decompose R to R1 and R2
+            Provided that we have FD X->Y on R
+            R1: R-Y
+            R2: XY
+        Continue until no BCNF violations are left
+    
+    RMK:
+        The decomposition procedures would be lossless and the resulting 
+        relations are in BCNF.
+    
+    Example 1
+        original relation: ssn, name, age, phoneNumber
+        FD: ssn -> name, age
+        decomposition:
+          R1: ssn, name, age
+          R2: ssn, phoneNumber
+        
+    Example 2
+        Contract(cid, supplierid, projectid, deptid, parid, qty, value)
+        FDs:
+            C -> SJDPQV // C is the primary_key
+            J -> S      // each project deals with a single supplier
+            SD -> P     // a dept purchases at most one part from a supplier
+        Decomposition
+            (CSJDPQV) -> (SDP) + (CSJDQV)           // removing P
+            (CSJDPQV) -> (SDP) + (CJDQV) + (JS)     // removing S
+            or
+            (CSJDPQV) -> (JS) + (CJDPQV)            // removing S
+        RMK: first decomposition is better than the second.
+
