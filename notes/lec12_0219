@@ -1,0 +1,195 @@
+lec 12 02/19
+
+Plans(Week3-4)
+    ER Model I
+    ER Model II
+    Functional Dependency
+    Normalization I
+        Use FDs to decompose the relations
+        Lossless join
+        BCNF
+    Normalization II            // this lec
+        Dependency Preserving
+        3NF
+
+Outline
+    Dependency-preserving decomposition
+    Third normal form (3NF)
+    Minimal cover of FDs
+    Decomposition into 3NF
+
+Dependency-preserving
+    Definition
+        Projection of FD on attribute set
+            the set of FDs in the closure of F+ that involve only attributes in X.
+            e.g.
+                R(A, B, C)
+                FDs:    A->B
+                        B->C
+                for R1(A, C) what is F1?
+                A->C is part of F1          // should be called projection of F on X=R1
+    
+        Dependency-preserving
+            The decomposition of relation schema R with FDs F into schemas with
+            attribute sets X and Y is dependency-preserving if 
+                (F_x union F_y)+ = F+
+            can infer F through F_x and F_y
+
+            Notation
+                Denote the projection of F on attributes X as F_x
+                Denote the projection of F on attributes Y as F_y
+    
+    Examples
+        1.
+            Person(ssn, name, age, canDrink)
+            FDs:    ssn -> name, age
+                    age -> canDrink
+            Decomposes into
+                R1(ssn, name, age)  //  F1: ssn -> name, age
+                R2(age, canDrink)   //  F2: age -> canDrink
+            Conclusion: Yes, union of F1 and F2 gives the original FDs, 
+            hence (F1 union F2)+ = F+
+        2. 
+            R(A, B, C)
+            FDs:    A   -> B
+                    B,C -> A
+            Decomposes into
+                R1(A, B)    // A->B
+                R2(A, C)    // no non-trivial FDs here
+            Conclusion: No, the dependency B,C->A cannot be recovered in any way.
+        3.
+            R(A, B, C)
+            FDs:    A -> B
+                    B -> C
+                    C -> A
+            Decomposes
+                R1(A, B)        // F1 includes: A->B and B->A
+                R2(B, C)        // F2 includes: B->C and C->B
+            Conclusion: Yes. From the original FDs we can infer B->A, C->B, A->C,
+            etc., which means (F1 union F2)+ = F+, this is dependency-preserving.
+
+        4. Decomposition into BCNF (from last lec)
+            Caveat: 
+                BCNF is not always dependency-preserving (some dependencies
+                may be lost in decomposition)
+            Contracts(contractid C,
+                      supplierid S,
+                      projectid J,
+                      deptid D,
+                      partid P,
+                      qty Q,
+                      value V)
+            FDs:    C  -> SJDPQV
+                    J  -> S
+                    SD -> P
+            Decomposition 1:
+                (SDP), (JS), (CJDQV)        // dependency-preserving
+            Decomposition 2:
+                (JS), (CJDPQV)              // NOT dependency-preserving
+            Decomposition 3:
+                (JS), (CJDPQV), (SDP)       // dependency-preserving, but redundant (across different relations)
+            
+    BCNF and Dependency-preservation
+        Sometimes we cannot decompose a relation into BCNF while preserving all 
+        dependencies.
+
+        R(A, B, C)
+        FDs:    A,B -> C
+                C   -> B
+        Qs:
+            Is R in BCNF?   
+                NO, C is not a key and C is in a non-trivial dependency
+
+            Can R be decomposed into BCNF relations while being lossless?
+                Yes, go through procedures
+                    for any X->Y in R, decompose R into (R-Y) and (XY)
+                and we get (A, C), (B, C) in this case.
+
+            Can R be decomposed into BCNF relations while preserving dependency?
+                NO, A,B->C cannot be preserved after any decomposition.
+
+
+
+Third Normal Form (3NF)
+    3NF
+        A relation R is in 3NF if whenever X->A, one of the following is true:
+          - A is in X (i.e. trivial FD)
+          - X is a superkey
+          - A is part of some key of R
+    BCNF
+        A relation R is in 3NF if whenever X->A, one of the following is true:
+          - A is in X (i.e. trivial FD)
+          - X is a superkey
+
+    RMK:
+        BCNF is stricter; any relations in BCNF are in 3NF, but not every 
+        relation in 3NF is in BCNF.
+
+    Why 3NF?
+        Every relation schema can be decomposed into a collection of 3NF relations
+        using only decompositions that are lossless-join and dependency-preserving.
+        in contrast:
+        every relation schema can be decomposed into a collection of BCNF 
+        relations using only decompositions that are lossless-join.
+
+    How to decompose into 3NF?
+        Need to compute minmal cover in order to decompose into 3NF.
+
+
+Minimal Cover for a Set of FDs
+    Given a set F of FDs, we know how to compute the closure F+
+    A minimal cover of F is the opposite of closure.
+    
+    Definition
+        A minimal_cover for a set F of FDs is a set G of FDs such that
+        - Every dependency in F is of the form X->A where A is a single attribute
+        - The closure F+ is equal to the closure G+
+        - If we obtain a set H of FDs from G by deleting one or more dependencies
+          or by deleting attributes from a dependency in G, then F+ != H+.
+    
+    Calculate minimal_cover
+        1. split the RHS to single attributes
+        2. minimize the LHS of each FD
+        3. delete redundant FDs
+    
+    Example
+        original FDs:
+            A       ->  B
+            A,B,C,D ->  E
+            E,F     ->  G,H
+            A,C,D,F ->  E,G
+        split:
+            A       ->  B
+            A,B,C,D ->  E
+            E,F     ->  G
+            E,F     ->  H
+            A,C,D,F ->  E   // redundant
+            A,C,D,F ->  G   // redundant
+        remove redundancy:
+            A       ->  B
+            A,B,C,D ->  E   // B can be inferred from A->B
+            E,F     ->  G
+            E,F     ->  H
+        clean up LHS:       // minimal_cover
+            A       ->  B
+            A,C,D   ->  E
+            E,F     ->  G
+            E,F     ->  H
+        
+Decomposition into 3NF
+    Steps
+      - Compute a minimal_cover F
+      - Apply algo for BCNF decomposition until all relations are in 3NF.   // can stop earlier (not as strict as BCNF)
+      - For each non-preserved FD X->A in F, add a new relation R(X, A)
+      - R(X, A) must be in 3NF
+            consider a potential violation Y->B
+            if B=A, Y must be X (Y cannot be subset of X since X->A is in minimal_cover)
+            if B!=A, B must be part of X, satisfying 3NF.
+
+    Alternatively
+      - Take a minimal_cover F of relation R, add a relation schema XA for each
+        X->A in F
+          - The resulting schemas are in 3NF and preserves all FDs
+      - If the decomposition is not lossless-join, we add a relation schema that
+        contains attributes that appear in some key.
+
