@@ -20,7 +20,7 @@ Outline
 
 Dependency-preserving
     Definition
-        Projection of FD on attribute set
+        The projection of FD on attribute set X:
             the set of FDs in the closure of F+ that involve only attributes in X.
             e.g.
                 R(A, B, C)
@@ -29,7 +29,7 @@ Dependency-preserving
                 for R1(A, C) what is F1?
                 A->C is part of F1          // should be called projection of F on X=R1
     
-        Dependency-preserving
+        Dependency-preserving:
             The decomposition of relation schema R with FDs F into schemas with
             attribute sets X and Y is dependency-preserving if 
                 (F_x union F_y)+ = F+

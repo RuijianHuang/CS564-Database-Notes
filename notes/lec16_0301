@@ -1,0 +1,190 @@
+lec 16 03/01
+
+week 6
+    data storage
+    buffer management
+    file organization
+
+outline
+    DBMS architecture
+    Disk
+    Other storage devices
+        SRAM cache
+        Main memory (DRAM)
+        SSD
+        NVM
+
+DBMS Architecture
+    Procedures
+        SQL query
+            |       query parser
+        unoptimized plan
+            |       query optimizer (weeks 10-11)
+        optimized plan
+            |       query executor (weeks 9-10)
+        data access
+            |       storage manager (weeks 6-8)
+        I/O access
+        
+    architecture of storage manager
+        // see pdf fig
+        access methods                  // weeks 7-8
+            sorted file
+            hash index
+            heap file
+            b+ tree index
+        recovery manager                // weeks 11-12 (Transaction Management)
+        concurrency control manager     // weeks 11-12 (Transaction Management)
+        buffer manager                  // week 6
+            |
+        I/O manager -> I/O access       // week 6
+
+    architecture - hardware perspective
+        How does a DBMS store and access data?
+          - primary_storage:    main memory (DRAM) for currently used data
+          - secondary_storage:  disk for the main database
+          - tertiary_storage:   tapes for archiving older versions of the data
+        
+        How do we move data from disk to main memory?
+          - buffer manager
+
+    storage hierarchy
+        cpu register                ^                   \
+        on-chip cache       (SRAM)  |lower latency       |> volatile
+        main memory         (DRAM)  |higher bandwidth   / 
+        non-volatile memory (NVM)   |smaller capacity   \
+        solid-state drive   (SSD)   |higher cost         |> persistent
+        hard disk drive     (HDD)   |more energy        / 
+
+Disk
+    Secondary storage device of choice
+    Data is stored and retrieved in units called disk_block's
+    The time to retrieve a disk_block varies depending on location on disk 
+        unlike RAM
+        the placement of blocks on disk has major impact on DBMS performance.
+    
+    Components
+        platter     circular hard surface on which data is stored by inducing magnetic changes
+        track       concentric circles on platters
+        sectors     sections of tracks on which data is encoded
+        spindle     axis responsible for rotating the platters
+        disk_head   mechanism to read or write data
+        disk_arm    moves to position a head on a desired track of the platter
+
+    Units
+        block_size
+            multiple of sector size (which is fixed)
+            at any time, exactly one head can read/write
+        Speed
+            RPM (Rotation Per Minute): 7200-15000
+
+    Accesing the disk
+        Unit of read/write: block_size
+            Once in mem, referred as a page
+            Typically, 4k, 8k, 16k
+
+        access_time = seek_time + rotational_delay + transfer_time
+
+            seek_time
+                move the disk heads to the track on which a desired block is 
+                located
+                    typical seek_time ~ 9ms
+                    ~4ms for high-end
+
+            rotational_delay
+                time to wait for sector to rotate under the disk head
+                    typical delay ~ 0-10ms
+                    max delay = 1 full rotation
+                    avg delay ~ half rotation
+
+            transfer_time
+                time to move the data from/to the disk surface
+                    typical rates ~ 100MB/s
+                    access_time is dominated by the seek_time & rotational_delay
+
+    Example: Specs
+        I/O rates for sequential accesses:  ~210MB/s 
+        I/O rates for random accesses:      ~0.3MB/s 
+            rotational_delay = 4.17ms
+            seek_time = 9ms
+            transfer_time = 4KB/(210MS/s) ~ 0.019ms
+            access_time/block = 13.2ms
+            I/O rate = 4KB/13.2ms ~ 0.3ms
+
+        Blocks in a file should be arranged sequentially on disk to minimize 
+        seek and rotational delay
+
+    Managing disk space
+        The disk space is organized into files
+        Files are made up of pages
+        Pages contain record
+
+        Data is allocated/deallocated in increments of pages
+        Logically close pages should be nearby in the disk
+
+
+Other storage devices
+    SRAM cache (Static random-access memory)
+        on-chip SRAM cache
+            latency:    1/10 ~ a few ns
+            bandwidth:  terabytes per second
+            capacity:   1/10 MB
+        levels
+            L1, L2, L3/LLC (last level cache) cache
+    
+    DRAM (Dynamic random-access memory)
+        Main memory metrics
+            latency:    ~100ms
+            bandwidth:  100GB/s
+            capacity:   100s of GB to TB
+    
+    SSD (Solid State Drive)
+        Properties
+          - SSDs use flash memory
+          - No physically moving parts (no rotate/seek motors)
+                eliminate seek time and rotational delay
+                very low power and lightweight
+          - More expensive than HDD
+          - Writes are more expensive than reads (10x)
+          - Limited lifetime
+                1-10k writes per page
+                The avg lifespan is 6yrs
+
+        SATA SSD bandwidth:     300-600 MB/s (sequential)
+        NVMe SSD bandwidth:     2GB/s (sequential)
+        
+        Random 4k page read latency: ~150us
+
+    NVM (Non-Volatile memory)
+        Some comparisons
+                        DRAM        NVM             SSD/HDD
+        Access          byte        byte            block storage
+        Granularity     addressable addressable     ?
+        Durability      volatile    non-volatile    non-volatile
+        
+        Performance
+            read latency
+                random read latency is 350ns which is 3x slower than local DRAM;
+                sequential read latency is 2x bettern than random read latency;
+            bandwidth
+                per-DIMM max 
+                    read bandwidth:  6.6GB/s
+                    write bandwidth: 2.3GB/s
+                read/write bandwidth gap is 2.9x for NVM (1.3x for DRAM)
+
+
+Storage hierarchy summary
+
+               | Latency     Bandwidth   Volatility  Access Granularity
+    -----------|------------------------------------------------------
+    SRAM Cache | 0.5-30ns    a few TB/s   volatile     byte-addressable
+    DRAM       | 50-100ns    ~100GB/s     volatile     byte-addressable
+    NVM        | ~200ns      ~40GB/s      persistent   byte-addressable
+    SSD        | 150us       ~2GB/s       persistent   page
+    HDD/Disk   | ~10ms       ~500MB/s     persistent   page
+
+        
+
+
+    
+        
