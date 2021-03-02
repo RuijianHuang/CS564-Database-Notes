@@ -1,0 +1,27 @@
+lec 15 02/26
+
+Extending Relational Algebra
+
+Group by aggregation
+    part of so-called extended RA
+    helps us to compute counts, sum, min, max, ...
+
+    examples
+        what is the average age of the customers?
+        how many people bought an iPad?
+
+    Notation: γ_(X, Agg(Y))R
+        group by attributes in X
+        aggregate the attribute in Y
+            SUM, COUNT, AVG, MIN, MAX
+        output schema: X + an extra (numerical) attribute
+    
+    examples
+        Person(ssn, name, age, phoneNumber)
+
+        γ_avg(age)Person
+        select avg(age) from Person;
+
+        γ_(ssn, count(phoneNumber))Person
+        select ssn, count(phoneNumber) from Person group by ssn;
+
