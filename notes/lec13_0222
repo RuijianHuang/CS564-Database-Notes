@@ -1,0 +1,212 @@
+lec 12 02/22
+
+Week 5
+    Relational Algebra I    this lec
+        Basic concepts
+        Selection and project
+        Union, intersection, and difference
+        Cross product
+        join, equi-join, natural join
+    Relational Algebra II   next
+        Division
+        Examples
+
+Outline
+    Relational Algebra
+    Basic Operations
+        Selection
+        Projection
+        Intersect, union, difference
+        Cross-product
+        Renaming
+    Derived Operations
+        Join, equi-join, natural
+        Division
+
+Relational Query Language
+    Allow the manipulation and retrieval of data from a db
+
+    Two types of query languages
+        Declarative: 
+            Describe what a user wants, rather than how to compute it
+              - Tuple Relational Calculus
+              - Domain Relational Calculus
+        Procedural:
+            Operational, useful for representing execution plans
+              - Relational Algebra
+
+Relational Algebra
+    Definition:
+        Algebra: mathematical system consisting of
+            Operands: 
+                variables or values from which new values can be constructed
+            Operators: 
+                Symbols denoting procedures that construct new values from given 
+                values.
+
+        Relational Algebra
+            An algebra whose operands are relations or variables that represent 
+            relations.
+
+    Prelim
+        Query/Operator
+            Input:  relational instances
+            Output: relational instances
+            Specified using the schemas
+
+        Two types of notation for attributes
+            positional          // e.g. 2.4
+            named-field         // C.name, Person.SSN
+
+        SQL uses multisets, however in Relational Algebra we will consider 
+        relations as sets.
+
+Basic Operations
+    Example Database
+        Sailors ( sid: integer, 
+                 sname: string, 
+                 rating: integer,
+                 age: real)
+        Boats ( bid: integer,
+                bname: string,
+                color: string)
+        Reserves ( sid: integer,
+                   bid: integer,
+                   day: date)
+    
+    Selection: 
+        Notation: σ_C(R)
+          - C is a condition that refers to the attributes of R
+          - outputs the rows of R that satisfy C
+          - output schema: same as input schema
+
+        Examples
+            σ_(rating>7)(S1) == (select * 
+                                 from S1 
+                                 where rating > 8;)
+            σ_(rating>8^age<45)(S1)
+    
+    Projection
+        Notation: π_(A_1, ..., A_n)(R)
+          - outputs only the columns A_1, ..., A_n
+          - removes any duplicate tuples
+          - output schema: R(A_1, ..., A_n)
+
+        Examples
+            π_(sname, rating)(S1) == (select distinct sname, rating
+                                      from S1;)
+            π_age(S1)
+        
+    Operators are compositional
+        Logically equivalent statements
+          - select distinct sname, rating from S1 where age >= 45;
+          - π_(sname, rating)(σ_(age>=45)(S1))
+          - π_(sname, rating)(σ_(age>=45)(π_(sname, rating, age)(S1)))
+
+    Union
+        Notation: R1 ∪ R2
+          - outputs all tuples in R1 or R2.
+          - for convenience, assume the attributes names of output relation is 
+            the same as R1.
+        
+        R1 and R2 must be union-compatible
+            Have the same number of fields, and
+            Corresponding fields have the same domains
+        
+    Intersection
+        Notation: R1 ∩ R1
+          - outputs all tuples in R1 and R2
+          - R1 and R2 must be union-compatible
+
+    Difference
+        Notation: R1 - R2
+          - outputs all tuples in R1 and not in R2
+          - R1 and R2 must be union-compatible
+    
+        Intersection is redundant
+            R1 ∩ R2 = R1 - (R1 - R2)
+    
+    Cross-product
+        Notation: R1 × R2
+          - Matches each tuples in R1 with each tuples in R2
+          - input schema: R1(A1, A2, ..., An), R2(B1, B2, ..., Bm)
+          - output schema: R1(A1, ..., An, B1, ..., Bm)
+
+        Example
+            Sailors × Reserves == (select * from Sailors, Reserves;)
+        
+        Convention for attributes names
+            R1 × R2 inherits name from R1 and R2
+            Naming conflict:
+              - Both relations have the same name
+              - These fields are unnamed and referred solely by position (e.g. sid)
+        
+    Renaming
+        Notation: ρ(S(F), R)
+          - does not change the instance, only the schema
+          - input schema: R(B1, B2, ..., Bn)
+          - output schema: R(A1, ..., An)
+        
+        Examples
+            ρ(C(1->sid1, 5->sid2), S1 × R1)
+            ρ(Temp, σ_(age<50)Reserves)             //?
+
+
+Derived operations
+    Join (Theta join)
+        Notation: R1 *tie*_θ R2 = σ_θ(R1 × R2)
+          - cross-product followed by a selection
+          - theta can be any θ
+          - might gave less tuples than the cross-product
+        
+        SQL equivalent:
+            select *
+            from R1, R2
+            where θ;
+
+        Example
+            S1 theta-join_(S1.sid<R1.sid) R1
+            equivalently:
+                select *
+                from S1, R1
+                where S1.sid < R1.sid
+    
+    Equi-Join
+        Notation: R1 *tie*_θ R2
+          - Special case of join where the condition θ contains only equialities 
+            between attributes
+          - Output schema: Fields of R1 followed by fields of R2 that do not 
+            appear in the join conditions.
+        
+        Example for R(A, B), S(C, D)
+          - R *tie*_(B=C) S
+          - output schema: T(A, B, D)
+
+            SQL equivalent:
+                select R.A, R.B, S.D
+                from R, S
+                where R.B = S.C
+
+    Natural Join
+        Notation: R tie S
+          - Special case of equi-join where equalities are specified on all 
+            fields having the same name in R and S.
+        
+        Examples:
+            input:  R(A, B, C, D), S(A, C, E)
+            output: T(A, B, C, D, E)
+            
+            input:  R(A, B, C) S(D, E)
+            output: T(A, B, C, D, E)
+
+            input:  R(A, B, C), S(A, B, C)
+            output? T(A, B, C)
+
+            Find the names of sailors who have reserved boat 103
+                select s.sname
+                from sailors s, reserves R
+                where s.sid = r.sid
+                  and r.bid = 103;
+            is equivalent to
+                π_sname(Sailors ties (σ_bid=103(Reserves)))
+        
