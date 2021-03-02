@@ -63,16 +63,9 @@ Relational Algebra
 
 Basic Operations
     Example Database
-        Sailors ( sid: integer, 
-                 sname: string, 
-                 rating: integer,
-                 age: real)
-        Boats ( bid: integer,
-                bname: string,
-                color: string)
-        Reserves ( sid: integer,
-                   bid: integer,
-                   day: date)
+        Sailors ( sid: integer, sname: string, rating: integer, age: real)
+        Boats ( bid: integer, bname: string, color: string)
+        Reserves ( sid: integer, bid: integer, day: date)
     
     Selection: 
         Notation: σ_C(R)
