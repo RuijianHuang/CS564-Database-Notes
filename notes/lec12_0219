@@ -19,6 +19,7 @@ Outline
     Decomposition into 3NF
 
 Dependency-preserving
+
     Definition
         The projection of FD on attribute set X:
             the set of FDs in the closure of F+ that involve only attributes in X.

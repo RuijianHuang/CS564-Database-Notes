@@ -1,0 +1,158 @@
+lec 17 03/03
+
+Buffer Management
+
+Outline
+    buffer manager
+    buffer replacement policy
+        LRU
+        clock
+        other algorithms
+
+
+Buffer Manager
+    Intro
+        How does a DBMS store and access data?
+          - primary_storage:    main memory (DRAM) for currently used data
+          - secondary_storage:  disk for the main database
+          - tertiary_storage:   tapes for archiving older versions of the data
+        
+        How do we move data from disk to main memory?
+          - buffer manager
+    
+    Buffer Manager
+        Data must be in RAM for DBMS to operate on it
+        Data pages may not entirely fit into main memory
+
+        Buffer manager: responsible for bringing pages from disk to main memory
+        as needed
+          - Pages brought into main memory are in the buffer_pool.
+          - The buffer_pool is partitioned into frames
+                frames: slots for holding disk pages
+            
+    Requests
+        Read (page)
+            read a page from disk and add to the buffer_pool 
+            (if not already in buffer_pool)
+
+        Flush (page)
+            evict page from buffer_pool & write to disk if dirty
+
+        Release (page)
+            decrement pin counter
+
+    Bookkeeping
+        For each _frame_:
+            pin_count:      Number of users currently on the page.
+                pinning:    increment the pin_count
+                unpinning:  decrement the pin_count
+
+            dirty_bit:      Indicates if the page has been modified
+                bit = 1:    changes to the page must be propagated to the disk
+
+    Page Request
+        Page is in the buffer_pool
+          - Return the address to the frame
+          - Increment the pin count
+
+        Page is not in the buffer_pool
+          - If exists empty frame, add the page to it
+          - Otherwise, choose a frame for replacement (with pin_count=0)
+          - If frame is dirty, write the page to disk
+          - Read requested page into chosen frame
+          - Pin the page and return the addresses
+
+    Example
+      Given a frame with size = 3
+      Execute:
+        request A     frame 1: A  dirty=0   pin=1     // one IO
+        modify  A     frame 1: A  dirty=1   pin=1
+        request B     frame 2: B  dirty=0   pin=1     // one IO
+        request B     frame 2: B  dirty=0   pin=2
+        release A     frame 1: A  dirty=1   pin=0     // can now be replaced
+        request C     frame 3: C  dirty=0   pin=1     // one IO
+        release B     frame 2: B  dirty=0   pin=1
+        request D     frame 1: D  dirty=0   pin=1     // two IOs: write A, read D
+        modify  D     frame 1: D  dirty=1   pin=1
+        release B     frame 2: B  dirty=0   pin=0     // can now be replaced
+        request A     frame 2: A  dirty=0   pin=1     // two IOs: write B, read A
+        request E     buffer_pool is full, request must wait
+
+
+Buffer replacement policy
+    Choose a victim if multiple pages can be evicted
+      - LRU
+      - Clock
+      - MRU (Most Recently Used)
+      - LFU (Least Frequently Used)
+      - FIFO, random
+    The replacement policy has a big impact on #IO, depending on the access 
+    pattern.
+
+LRU (Least Recently Used)
+    Definition
+        Uses a queue of pointers to frames that have pin_count = 0;
+        A page request uses frame only from the head of the queue;
+        When the pin_count of a frame goes to 0, it is added to the end of the 
+        queue.
+
+    Example
+      Execute:                   //               init priority_queue: 1,2,3
+        request A, Release A     // frames: A . .   |  priority_queue: 2,3,1
+        request B, Release B     // frames: A B .   |  priority_queue: 3,2,1
+        request C, Release C     // frames: A B C   |  priority_queue: 1,2,3
+        request A, Release A     // frames: A B C   |  priority_queue: 2,3,1
+        request B, Release B     // frames: A B C   |  priority_queue: 3,1,2
+        request D, Release D     // frames: A B D   |  priority_queue: 1,2,3
+        request A, Release A     // frames: A B D   |  priority_queue: 2,3,1
+        request B, Release B     // frames: A B D   |  priority_queue: 3,1,2
+        request E, Release E     // frames: A B E   |  priority_queue: 1,2,3
+      Stats
+        miss_ratio = 5/9 = 55.6%
+        hit_ratio = 4/9 = 44.4%
+
+Clock
+    Drawbacks of LRU
+      - LRU priority_queue consumes memory
+      - Needs to update the list for each page access
+    -> Clock algo is a variant of LRU with lower memory consumption and computation
+
+    Clock Algorithm
+      Data structure
+        Each frame has a referenced bit that is set to 1 when pin_count becomes 0;
+        A current variable points to a frame;
+
+      When a frame is considered for replacement:
+        if pin_count > 0:
+            increment current
+        if referenced = 1:
+            set referenced = 0
+            increment current
+        if referenced = 0 and pin_count = 0:
+            choose the page to replace
+    
+    Example: skipped for now
+
+Other replacement policy
+    MRU (Most Recently Used)
+      Consider a buffer_pool of size K and the following access pattern
+        while True:
+            for i in range(1, k+1+1):
+                access P_i
+
+      LRU
+        Sequential flooding: all accesses are misses
+      MRU
+        After the 1st iteration, only one access per iteration is a miss
+    
+
+    LFU (Least Frequently Used)
+      replace the least frequently used page
+      use a counter to track number of per-page access
+
+    FIFO
+      replace the first page in the buffer
+      maintained using a FIFO queue
+
+    Random
+      pick a random page for replacement
