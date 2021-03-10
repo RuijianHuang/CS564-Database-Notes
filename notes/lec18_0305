@@ -1,0 +1,189 @@
+lec 18 03/05
+
+File Organization
+
+DBMS vs. OS file system
+    DBMS better at predicting the reference patterns
+    Buffer management in DBMS requires ability to
+        - pin a page in buffer_pool
+        - force a page to disk (required to implement CC & recovery)
+        - Adjust replacement policy (e.g. LRU vs. MRU)
+        - Prefetch pages based on predictable access patterns
+    Can better control the overlap of IO with computation
+    DBMS can leverage multiple disks more effectively
+
+Managing disk space
+    The disk space is organized into files
+        File: a collection of pages 
+        Page: a collection of records
+
+Outline
+    Files of records
+    Page formats
+    Record formats
+    Column store
+
+Files or records
+    Unrodered (Heap) Files
+        Contain the records in no particular order
+        As file grows/shrinks, disk pages are allocated/deallocated
+        File operations
+            - Insert/delete/modify record
+            - Read a particular record (specified using the record_id)
+            - Scan all records 
+                (possibly with some conditions on the records to be retrived)
+
+        > to support scan:      keep track of all pages in each heap file
+        > to support insertion: keep track of all pages that contain free space
+
+
+    Heap File as Linked List
+        (heap_file_name, header_page_id) stored in a known location;
+        Each page has 2 pointers + data
+            pointers = page_id
+
+        Pages in the free space list have "some" free space
+                // <=> data_page <=> data_page <=> ... full pages
+            header_page
+                \\ <=> data_page <=> data_page <=> ... pages with free space
+            
+        Limitation
+            may examine multiple pages to find enough free space
+
+    Heap file as Page Directory
+        Each entry for a page keeps track of:
+            - option 1: is the page full     -> 1 bit per entry
+            - option 2: number of free bytes -> several bits per entry
+        
+        The directory is much smaller than the data_pages
+        RMK: We can now locate pages for new insertions faster.
+
+Page formats
+    Arrangement of records on a page
+        A page is collection of slots, each slot contains a record
+        Record ID (rid) = <page_id, slot_number>
+
+        Operations to support
+            Search, insert, delete records on a page
+
+    Fixed-length vs. Variable-length records
+        create table test (     create table test (
+            col1 CHAR(10),          col1 VARCHAR(10),
+            col2 CHAR(100)          col2 VARCHAR(100)
+        );                      );
+
+      - Fixed-length records in the same table has the same size
+      - Variable-length records may have different sizes
+      - Size information is maintained in a category.
+        
+    Fixed-length records 
+        Packed
+            Packed_organization: N records are always stored in the first N slots.
+                slot1: contents, ...
+                slot2: contents, ...
+                slot3: contents, ...
+                slot4: free_space
+                slot5: free_space
+                ...
+                N (number of records)
+            Problem: if one record is deleted, all following records are moved up;
+                -> positions and rid's change.
+        Unpacked
+            Unpacked_organization: use a bitmap to locate records in the page.
+                slot1: free_space
+                slot2: contents, ...
+                slot3: free_space
+                slot4: contents, ...
+                slot5: free_space
+                ...
+                bitmap: ...10101, M (number of slots)
+            The page also contains some other file-level info (e.g. id of next page)
+    
+    Variable-length records         // TODO
+
+Record formats
+    Intro
+        organizations of fields within a record?
+          - Fixed-length
+          - Variable-length
+        
+        info common to all records of a given type is kept in the system catalog:
+          - number of fields
+          - field type
+
+    Fixed-length fields
+        All records have the same length and same number of fields
+        The address of any field can be computed from info in ths system_catalog
+        e.g.
+            f1, f2f2f2f2f2, f3, f4f4f4f4, f5f5, f6f6, ...
+            l2 = length of field f2
+
+    Variable-length
+        Delimiter
+            Store fields consecutively
+            Use delimiters to denote the end of a field
+            Need a scane of the whole record to locate a field
+            e.g. 
+                f1f1f1f1$f2f2$f3f3f3f3f3f3$f4$f5$...
+
+        Array of offsets
+            Store fields consecutively
+            Use an array of integer offsets in the beginning
+            e.g.
+                [ptr1h, ptr1t, ptr2h, ptr2t, ...]f1f1f1f2f2f2f3f3f3f4f5f5...
+
+            For a null value, end fields pointer = begin field pointer.
+
+Column store
+    Column store
+        Store data "vertically"
+        Constrast that with a "row-store" that stores all the attributes of a 
+        tuple/record contiguously.
+            - the previous record formats are "row-store"
+        e.g.
+            a|a'|a''        file1: abc
+            b|b'|b''    =>  file2: a'b'c'
+            c|c'|c''        file3: a''b''c'''
+
+    Column store vs. Row store
+        Consider a table:
+            - Foo (a int, b int, c varchar(255), ...)
+        and the query:
+            - select a from Foo where a > 10;
+
+        What happens with the previous record format in terms of the bytes that 
+        have to be read from the IO subsystem?
+        
+        Column store:   for read-intensive data analytics
+        Row store:      for update-intensive transactional workloads
+
+    N-ary Storage Model (NSM)
+        Relation R
+            RID     SSN     Name    Age
+            1       0962    Jane    30
+            2       7658    John    45
+            3       3859    Jim     20
+            ...
+
+        NSM Page
+            PAGE HEADER | RH1|0962|Jane|30 | RH2|7658|John|45 | RH3|3859|Jim|20 | ...
+            [ptr_to_RH1, ptr_to_RH2, ptr_to_RH3, ...]   // at the end of NSM page
+
+        Cache
+            Block 1: Jane|30|RH
+            Block 2: 45|RH3|3859
+            Block 3: Jim|20|RH4
+            Block 4: 5523|Susan|52
+    
+    Partition Attributes Across (PAX)
+        PAX page
+            PAGE HEADER|0962|7658|3859|...
+            ------------------------------
+            Jane|John|Jim|Susan|...
+            ------------------------------
+            30|52|45|20|...
+        Cache
+            Block 1: 30|52|45|20
+            ...
+
+

@@ -61,10 +61,12 @@ Lossless-join Decomposition
               - The attributes common to R1 and R2 must contain a key for either R1
                 or R2
 
-            e.g.
-              - If an FD X->Y holds over a relation R and X intersect Y is empty, 
-                the decomposition of R into R-Y and XY is lossless.
+        
+        Decomposition
+            If an FD X->Y holds over a relation R and X intersect Y is empty, 
+            the decomposition of R into R-Y and XY is lossless.
 
+            e.g.
               - R(ssn, name, rating, hourly_wages, hours_worked)
                     rating -> hourly_wages
                     R1(ssn, name, rating, hours_worked)
