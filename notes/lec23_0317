@@ -1,0 +1,153 @@
+lec 23 03/17
+
+Week 8, 9 
+    Indexing
+    hash index   <-
+    B+tree index 
+    Bitmap index
+
+Outline
+    Static hashing
+      - equality_search
+      - insert and deletes
+      - hash functions
+      - limitations of static hashing
+    Extensible hashing
+      - search
+      - insertion and split
+      - discussion
+
+Static hashing
+    A hash_index is a collection of buckets
+      - bucket = primary_page + overflow_pages
+      - each bucket contains one or more index entries
+      - can use either design 1 or 2
+            (We use design 1 (i.e. records) in this lec)
+
+    fig:
+    Person(name, zipcode, phone)
+      - search_key: {zipcode}
+      - hash_function h: last 2 digits mod 4
+      > 4 buckets
+      > each bucket holds 2 index entries
+
+                    primary_pages               overflow_pages
+        bucket 0    (John, 53400, 121221121)    (Anna, 53632, 78273827382)
+                    (Alice, 54768, 281728127)
+        bucket 1    (Paris, 53409, 878787878) 
+        bucket 2
+        bucket 3    (Maria, 34411, 898989899)
+    
+    to find the bucket for each record, apply a hash function h
+    h maps a search_key value to one of the buckets
+
+Equality search (search-key = value)
+    Apply the hash function on the search_key to locate the appropriate bucket
+    Search through the primary_page + overflow_pages to find the record(s)
+
+        IO cost = 1 + #overflow_pages
+    
+    Cost if using design 2 for index_entry (i.e. rid)?
+        Need one more IO to access the data page, but may have fewer overflow_pages
+
+        IO cost = 2 + #overflow_pages
+
+Hash index operations - insert/delete
+    Insertion
+      - find the appropriate bucket, insert the record
+      - if there is no space, create a new overflow_page
+    Deletion
+      - find the appropriate bucket, delete the record
+      - if it is the last record in an overflow_page, remove the page from the 
+        chain
+
+Hash functions
+    A good hash function is
+        -> uniform:     each bucket is assigned the same number of key values
+        -> fast to compute
+    A hash function h of the form h(value) = (a*value + b) works well in prac
+        constants a and b can be chosen to tune the hash function.
+
+Limitation of static hashing
+    In static hashing, there is a fixed number of buckets in the index
+      - if the database grows, the number of buckets will be too small: long 
+        overflow chains degrade performance
+      - if the database shrinks, space is wasteed due to empty buckets
+    
+    Rehashing?
+      - Double the bucket count and redistribute data
+        Problems:
+            Expensive computation and data movement
+            Block query execution
+
+
+Extensible hashing
+    intuition:
+        when a bucket overflows, reorganize only the overflowing bucket (rather 
+        than all buckets)
+    
+    Definitions
+        global_depth
+            how many bits to use to find the bucket
+
+        local_depth
+            ???
+
+        directory
+            stores pointers to records/entries(?)
+            will be doubled if local_depth == global_depth
+
+        Extensible_hashing 
+            A type of dynamic hashing
+            It keeps a directory of pointers to buckets
+            On overflow, it reorganize the index by doubling the directory 
+            (not the number of buckets)
+
+    Search
+        To search, use the last (global depth) digits of the binary form of 
+        the search_key value
+        (see L23.pdf p29 for fig)
+
+    Insert
+        Same as search then insert
+        If there are spaces left within a bucket:
+            insert into that bucket directly.
+        Else if the targeted bucket is full:
+            1. allocate a new bucket and redistribute entries (consider the last 3 bits)
+            2. double the directory
+                - bucket split
+                - global_depth & local_depth adjustment
+            
+    Bucket split
+        - originally pointers and buckets are one-to-one
+        - after doubling pointers and buckets are "many-to-one"?
+        - the splited bucket gets one pointer and another to the 
+          newly allocated one 
+
+    Global and Local Depth
+        Local depth
+          - incremented upon bucket split
+          - double directory if local_depth == global_depth
+
+    Delete
+      - Locate the bucket of record and remove it.
+      - If the bucket becomes empty, it can be removed (and update the directory)
+      - Two buckets can also be coalesced together if the sum of the entries 
+        fit in a single bucket
+      - Decreasing the size of the directory can also be done, but it is 
+        expensive.
+
+Discussion
+    Cost of doubling directory
+        The directory is much smaller than the buckets and can typically fit in 
+        memory.
+        e.g.
+            100MB file with 100bytes of data entry and a page size of 4KB
+              - #entries in the directory = 100MB/4KB = 25,000
+    
+    More on extensible hashing
+      - #IOs for equality_search = 1 if directory fits in mem, else 2
+      - The directory grows in spurts, and if the distribution of hash values 
+        is skewed, the directory can grow very large.
+      - We may need overflow_pages when multiple entries have the same hash 
+        value.
