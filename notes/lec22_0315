@@ -1,0 +1,242 @@
+
+Lec 22 03/15
+
+Week 8, 9 
+    Indexing
+    hash index
+    B+tree index
+    Bitmap index
+
+Outline
+    DB architecture recap
+    
+    Index basics
+        Index in SQL
+        Index entry design
+        Primary vs.secondary
+        Clustered vs. unclustered
+    Evalueting and choosing indexes
+    
+Architecture of storage manager
+    SQL query ->
+        query parser
+        query optimizer
+        query executor
+        storage manager
+    -> IO access
+
+File organization
+    So far we have seen heap files
+        unordered data
+        support scanning all records in a file
+        support retrieving by record id (rid)
+    but what if we want to find a recrd satisfying a certain predicate
+        e.g.: all employees with salary > 5000
+        e.g.: the department with name "computer science"
+
+Motivating example
+    Sales(sid, product, date, price)
+        SELECT  *
+        FROM    Sales
+        WHERE   Sales.date = "03-15-2021"
+
+    or:
+        SELECT  *
+        FROM    Sales
+        WHERE   Sales.date > "03-15-2021"
+          AND   Sales.date <= "03-15-2021"
+
+    What happens if the data is storated in a heap file?
+        We need to scane all pages of the file to return the correct result
+
+Alternative file organization
+    We can speed up the query execution by better organizing the data in a file.
+    There are many alternatives:
+      - Sorted files
+      - Indexes
+          - Hash index
+          - B+ tree
+          - Bitmap index
+
+Index basics
+    Topics:
+        Index in SQL
+        Index entry design
+        Primary vs. secondary
+        Clustered vs. unclustered
+      - Evaluating and choosing indexes
+
+    What is an index?
+        Index
+            A data structure that organizes records of a table to speed up 
+            retrival
+            
+        Search_key:
+            Attribute or combination of attributes used to retrieve the records.
+              - any subset of the attributes can be the search key
+              - a search key is NOT the same as the primary_key
+
+    Index in SQL
+      - CREATE INDEX index_name
+        ON tabel_name (column_name);
+        e.g.
+            CREATE INDEX index1
+            ON Sales(date);
+            
+            CREATE UNIQUE INDEX index2
+            ON Sales(sid);
+        
+      - UNIQUE
+          - A unique index does not allow any duplicate values to be inserted 
+            into the table
+          - It can be used to check efficiently integrity constraints:
+                A duplicate value will not be allowed to be inserted.
+        
+      - Composite Search_key
+            CREATE INDEX inde3
+            ON Sales(date, price);
+            
+          - Indexes with composite search_key's are larger and more expensive 
+            to update.
+          - They can be used if we have multiple selection conditions in our
+            queries.
+        
+      - Example: Hash index
+            Person(name, zipcode, phone)
+              - search_key: {zipcode}
+              - hash_function h: last 2 digits of zipcode modulo 4
+
+         -> to find the bucket for each record, we apply a hash function h on 
+            the search key.
+                        primary_pages
+            bucket 0    (John, 53400, 7263723679)
+                        (Alice, 54768, 2817987238)
+            bucket 1    (Mike, 53409, 9871987329)
+            bucket 2 
+            bucket 3    (Maria, 34411, 2827382321)
+
+      - heap file vs. hash_index
+        if the data is stored in a heap file:
+            we need to scan all pages of the file to return the correct result.
+        if we have a hash_index on Sales.date?
+            we just look up a few pages to find the record(s).
+
+Index entry design
+    index_entry
+        for a value k of the searcg key, it can take two forms:
+            Design 1: the record with key value k
+            Design 2: <k, rid of record(s) with search key value k>
+
+        Note: the choice of alternative for an index entry is independent of 
+        the indexing technique.
+
+        index_entry design 1
+            e.g.
+                Person(name, zipcode, phone)
+                  - search_key: {zipcode}
+                  - hash_function h: last 2 digits of zipcode modulo 4
+
+                          | index_entries
+                bucket 0  | (John, 53400, 7263723679)
+                          | (Alice, 54768, 2817987238)
+                bucket 1  | (Mike, 53409, 9871987329)
+                bucket 2  |
+                bucket 3  | (Maria, 34411, 2827382321)
+
+          - The index structure is by itself a file organization for records 
+                (vs. a heap file)
+          - At most one such index on a given tble (to avoid duplicate)
+          - Index entry is relatively large.
+        
+        index_entry design 2
+            e.g.
+                Person(name, zipcode, phone)
+                  - search_key: {zipcode}
+                  - hash_function h: last 2 digits of zipcode modulo 4
+
+                          | index_entries       primary_pages??
+                bucket 0  | 53400           -> (John, 53400, 7263723679)
+                          | 54768           -> (Alice, 54768, 2817987238)
+                bucket 1  | 53409           -> (Mike, 53409, 9871987329)
+                bucket 2  | 
+                bucket 3  | 34411           -> (Maria, 34411, 2827382321)
+          - Multiple such indexes can exist on a given table
+          - Index entry can be smaller than design 1
+                
+Primary vs. secondary
+    Definitions
+        primary_index
+            an index is called the primary_index if the search_key contains 
+            the primary_key.
+              - In a primary_index, there are no duplicates for a value of the 
+                search_key.
+              - There can only be one primary_index.
+
+        secondary_index
+            any index other than the primary_key is called a secondary_index.
+
+        unique_index
+            an index is called an unique_index if the search_key contains a 
+            candidate key.
+    
+    Alternative secondary_index design (see lec22.pdf p26-28 for figures)
+        1. primary_index stores records, secondary_index stores rid
+        2. both primary_index and secondary_index store rid
+        3. secondary_index store the primary_key
+            only primary_index is changed when updating rid
+
+    Composite indexes
+        composite_search_key
+            search on a combination of attributes
+            e.g.
+                Sales(sid, product, date, price)
+                An index on {date, price} is a composite_index.
+                Order matters: {price, date} is a different index.
+
+Clustered Indexes
+    clustered_index
+        the order of records is the same as or close to the ordering of data 
+        entries in some index
+          - An index that stores records (design 1) is clustered, by def
+          - An index that stores rid (design 2) is clustered only if the data
+            records are sorted on the search_key field.
+
+    In practice, files are rarely sorted (too expensive to support updates).
+    So a clustered_index is typically an index that stores records (design 1).
+
+Evaluating and choosing indexes
+    How to evaluate an index?
+        What access types does it support?
+            e.g.: equality search, range search, etc.
+        Time to access a record
+        Time to insert a record
+        Time to delete a record
+        How much space does it use?
+
+    Choosing indexes
+        What indexes should we create?
+          - which tables should have indexes?
+          - what field(s) should be the search_key?
+          - should we build several indexes or one?
+
+        For each index, what kind of an index should it be?
+          - clustered
+          - hash/ tree/ bitmap
+
+        Trade-off as we add more indexes:
+          - Queries go faster, updates are slower
+          - More disk space is required
+
+        Attributes in WHERE clause are candidates for index keys
+          - Exact match condition suggests hash index
+          - Indexes also speed up joins (later in class)
+          - Range query suggests tree index (B+ tree)
+
+        Multi-attribute search_keys should be considered when a WHERE clause 
+        contains several conditions
+          - The order of attributes is important for range queries.
+          - Some indexes enable index-only strategies for queries.
+            e.g.:
+            SELECT  COUT(*)
+            FROM    Student
+            WHERE   Student.age = 20;
