@@ -1,0 +1,135 @@
+lec 25 03/22
+
+B+ tree
+
+Week 8, 9 
+    Indexing
+    hash index
+    B+ tree index <-
+    Bitmap index
+
+Outline
+    B+ tree data structures
+    B+ tree operations
+        Search
+        Insertion
+        Deletion
+
+Motivation
+    We have the following SQL query
+        SELECT  *
+        FROM    Sales
+        WHERE   price > 100;
+    RMK
+        Hash index accelerates _equality_ search
+            in expectation constant IO cost for search and insert
+        Tree-based index accelerates both _equality_ and _range_ search
+            in expectation Log(N) IO cost for search and insert
+
+B+ tree index
+    Properties
+        A dynamic tree-structured index
+            Adjusted to be always height-balanced
+            1 node = 1 physical page
+        Supports efficient equality_search and range_search
+        Widely used in many DBMSs
+          > SQLite uses it as the default index
+          > SQL server, DB2, MySQL, PostgreSQL
+
+    Basic structure
+                          root-node
+                        /           \
+                non-leaf-node1      non-leaf-node2
+               /       |      \            |       \
+      leaf-node<->leaf-node<->leaf-node<->leaf-node<->leaf-node
+
+        Index entries
+          - Exist only in the leaf nodes
+          - Are sorted according to the search_key
+
+        Node
+            The parameter d is the order of the tree
+            Each node contains d<=m<=2d entries
+                Minimum 50% occupancy
+            With the exception of the root node, which can have 1<=m<=d entries.
+        
+        Non-leaf-nodes
+            A non-leaf (or internal) node with m entries has m+1 pointers to 
+            the lower level nodes.
+            - pointers are sorted by page values? 
+            
+        Leaf-nodes
+            A leaf-node with m entries has
+              - m pointers to the data records (rids)
+              - pointers to the _next_ and _previous_ leaves.
+            e.g.
+                (ptr to prev...) r1 k1 r2 k2 ... rm km (ptr to next...)
+        
+    Example
+        order d = 2
+                                || 60 ||
+                            /            \
+                  || 20 || 40 ||        || 70 || 80 || 90 ||
+                  /      |       \           \
+          ||5||12<->||25||34||35<->||55||58<->||62||53||64<->...
+           |  |      |   |   |      |   |      |   |   |      |...
+          ... ...   ...  ... ...   ...  ...   ... ... ...    ...
+        
+    B+ tree vs. B-tree
+        B-tree:     Data pointers stored in all nodes
+        B+ tree:    Data pointers stored only in leaf nodes
+                    The leaf-nodes are linked
+
+B+ tree Operations
+    A B+ tree supports the following operations
+        - equality_search
+        - range_search
+        - insert
+        - delete
+        - bulk_loading
+
+    Search
+        Start from the root node
+        Examine the index entries in non-leaf-nodes to find the correct child
+        Traverse down the tree until a leaf node is reached
+          - For equality_search, we are done
+          - For range_search, traver the leaves sequentially using the prev/next
+            pointers.
+        e.g. see L25.pdf p17
+
+    Insert
+        Find the leaf-node L where the entry belongs
+        Insert data entry in L
+          - If L has enough space, DONE!
+          - Otherwise, we must split L (into L and a new node L)
+        This can propagate recursively to other nodes
+          - To split a non-leaf node, redistribute entries evenly, but push up 
+            the middle key.
+        e.g. see L25.pdf p23
+
+        Properties
+            The B+ tree insertion algo has several attractive qualities:
+              - Aboud the same cost as equality_search
+              - self-balancing: 
+                    the tree remains balanced (w.r.t. height) even after 
+                    multiple insetions
+    Deletion
+        Find the leaf-node where entry belongs
+        Remove the entry
+          - If L is at least half-full, DONE!
+          - If has only d-1 entries:
+              > try to redistribute borrowing entries from a neighboring sibling
+              > if redistribution fails, merge L and sibling
+        
+        e.g. see L25.pdf p34
+        
+        Properties
+          - Redistribution of entries is also possible for the non-leaf-nodes
+          - We can also try to redistribute using all siblings, and not only 
+            the neighboring ones.
+          - In real systems, deletion of often implemented without adjusting 
+            the tree structure, because files typically grow rather than shrink
+        
+                    
+
+
