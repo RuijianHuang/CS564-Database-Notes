@@ -1,0 +1,111 @@
+lec 27 03/26
+
+External Sorting
+
+Outline
+    External merge
+    External merge-sort
+        2-way merge sort
+        Multiway merge sort
+
+Why sorting?
+    Users often want the data sorted (ORDER BY)
+    First step in bulk_loading a B+ tree
+    Used in duplicate elimination
+    The sort-merge join algo (later in class) involves sorting as a first step
+
+Sorting in Databases
+    Why dont the standard sorting algos work for a DBMS?
+      - Merge sort
+      - Quick sort
+      - Heap sort
+
+    > The data typically does not fit in memory
+        e.g., how do we sort 1TB of data with 8GB of RAM?
+        
+External merge
+    Input:  2 sorted lists (with M and N pages)
+    Output: 1 merged sorted list (with M+N pages)
+
+    We can efficiently (in terms of IO) merge the two lists using a buffer 
+    of size 3 using only 2(M+N) IOs
+    
+    e.g.: see L27.pdf p7
+    
+    External merger cost
+        We can merge 2 sorted lists of M and N pages using 3 buffer frames with
+                        IO cost = 2(M+N)
+        When we have B+1 buffer pages, we can merge Blists with the same IO cost.
+
+
+The External Sorting Problem
+    B available pages in buffer pool
+    A relation R of size N pages (where N > B)
+
+    Sorting
+        output the same relation sorted on a given attribute
+
+    Key idea
+      - Split into chunks small enough to sort in memory (called runs)
+      - Merge groups of runs using the external merge algo
+      - Keep merging the resulting runs (eah time is called a pass) until left
+        with a single sorted file.
+
+    2-way Merge Sort (see L27.pdf p21 for details)
+        Given B = 3 frames, N = 6 pages     // total cost = 24 IOs
+            Split 6 pages on disk into 2=6/3 chunks
+            pass0:                     // N*2 = 6*2 = 12 IOs
+                For each chunk (that now fits in buffer):
+                      Read the chunk in memory
+                      Sort the chunk in mem
+                      Write the chunk back to disk
+            pass1:                     // N*2 = 12 IOs
+                External merge sort
+        
+        Given B = 3 frames, N = 12 pages    // total cost = 72
+            Split 12 pages into 4=12/3 chunks
+            pass0:                    // N*2 = 12*2 = 24 IOs
+                For each chunk:
+                    Read, sort, write back to disk
+            pass1:                    // N*2 = 24 IOs
+                External merge sort (into 2 bigger chunks)
+                    > merge 1st and 2nd -> bigger1
+                    > merge 3rd and 4th -> bigger2
+            pass2:                    // N*2 = 24 IOs
+                Externel merge sort (into one bigass unity)
+                    > merge bigger1 and bigger2
+        IO:
+            We need [log_2(N/B) + 1] passes to sort the whole file
+            Each pass needs 2N IOs
+            Total IO = 2N(log_2(N/B)+1)
+    
+        Can we do better:
+            The 2-way merge algo only uses 3 buffer pages
+            But we have more available mem
+            Key idea:
+                use as much of the available mem as possible in every pass 
+                i.e. increase B
+                - reduce the number of passes and IO
+
+    Multi-way Merge Sort
+        Initial run length = B
+        In each pass, we can merge (B-1) runs
+        
+        Suppose we have B>=3 buffer pages available:
+            Pass 0: length of each initial run = B
+            pass 1: merge (B-1) into one larger run
+            ...
+            
+        IO
+            Each run incurs 2N IOs
+            Total number of passes = log_(B-1)(N/B) + 1
+            Total IO = 2N * (log_(B-1)(N/B) + 1)
+        
+        Number of passes
+            N               B=3     B=17    B=257
+            100             7       2       1
+            10,000          13      4       2
+            1,000,000       20      5       3
+            10,000,000      23      6       3
+            100,000,000     26      7       4
+            1,000,000,000   30      8       4
