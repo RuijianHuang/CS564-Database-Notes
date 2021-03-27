@@ -1,0 +1,218 @@
+lec 24 03/24
+
+B+ tree & bitmap
+
+Week 8, 9 
+    Indexing
+    hash index
+    B+ tree index <-
+    Bitmap index <-
+
+Outline
+    Discussion of B+ tree
+        Duplicate search_keys
+        Calculating B+ tree parameters
+        Key compression
+    Bitmap index
+    Bit-slice index
+
+B+ tree duplicates
+    Duplicate_keys: many index entries with the same key valye
+    Solution #1
+        - all entries with a given key value reside on a single page
+        - use overflow_pages
+    Solution #2
+        - allow duplicate key values in data entries
+        - may consider <key, rid> as the new unique key
+
+B+ tree Parameters
+
+    Fan-out f
+        Definition
+            the number of pointers to child nodes coming out of a non-leaf-node
+        Properties
+          - compared to binary trees (fan-out = 2), B+ trees have a high fan-out 
+            (d+1<=f<=2d+1)
+          - the fan-out of B+ trees is dunamic and depends on the key/record size,
+            but we will typically assume it is consant for our cost model
+    
+    Fill_factor F
+        Definition
+            The percent of available slots in the B+ tree that are filled 
+            (0.5 < F < 1)
+        
+        Properties
+          - It is usually <1 to leave slack for (quicker) insertions!
+          - Typical fill factor F = 2/3
+
+    Height h
+        Definition
+            The number of levels of the non-leaf-nodes
+        Properties
+          - B+ tree with only the root has height 0
+          - IO requirement for each search = h
+          - High fan-out -> smaller height -> less IO per-search
+          - Typical heights of B+ trees is 3 or 4
+
+    Example
+        Numbers
+            page size P = 4000 bytes
+            search key size = 30 bytes
+            address size = 10 bytes
+            fill_factor = 2/3
+            number of records = 2,000,000
+
+        Assumptions
+            We assume that the index entries store only 
+                the search_key and
+                the address of tuple
+            We assume no duplicate entries
+        
+        What is the order d and fan-out f?
+            - each non-leaf-node stores up to 2d keys + (2d+1) addresses
+            - to fit this into a single page, we must have:
+                2d*30 + (2d+1)*10 <= 4000 <=> d <= 50
+            Since a max capacity node has (2d+1)=101 children, and the 
+            fill_factor = 2/3, the equivalent fan-out is f = 101*2/3 = 67
+            
+        How many leaf pages are in the B+ tree?
+            - We assume for simplicity that each leaf page stores only pairs of 
+              (key, address)
+            - Each pair needs 30+10=40 bytes
+            - To store 2,000,000 such pairs with fill_factor F=2/3, we need
+                #leaves = (2,000,000*40)/(4,000*F) = 30,000
+        
+        What is the height h of the B+ tree?
+            We calculated that we need to index N=30,000 pages
+               - h=1 -> indexes f pages
+               - h=2 -> indexes f^2 pages
+                 ...
+               - h=k -> indexes f^k pages
+            For our example, h = [log_67(30,000)] = 3
+        
+        What is the total size of the tree?
+            #pages = 1 + 67 + 67^2 + 30,000 = 34,557
+            The top levels of the B+ tree do not take much space and can be kept 
+            in buffer_pool
+              - level 0 =      1 page  ~ 4KB
+              - level 1 =     67 pages ~ 268KB
+              - level 2 =  4,489 pages ~ 18MB
+              - level 3 = 30,000 pages ~ 120MB
+            
+            In practice, the #IO = #levels that is not cached in buffer_pool
+
+Key compression
+    Search keys in non-leaf-nodes are used only to appropriate leaf
+    Need not store search key values in their entirety in non-leaf-nodes
+    e.g.
+            ||Daniel Lee||David||...
+                        |
+            Dante Wu | Darius Rex | ... | Davey Jones
+        becomes:
+            || Dani || Davi || ...
+                    |
+            Dante Wu | Darius Rex | ... | Davey Jones
+
+Bitmap index
+    Motivation
+        Consider the following table:
+        CREATE TABEL Tweets (
+            uniqueMsgID     INTEGER,        -- unique message id
+            tstamp          TIMESTAMP,      -- when was the tweet posted
+            uid             INTEGER,        -- unique id of the user
+            msg             VARCHAR(140),   -- the actual message
+            zip             INTEGER,        -- zipcode when posted
+            retweet         BOOLEAN         -- retweeted?
+        );
+        To speed up search on uid or zip? Build an B+ tree index
+        To speed up search on retweet?
+          - Three distinct value: yes, no, NULL
+          - Many duplicates for each distinct value
+          - A weird B+ tree with three long rid lists
+         -> Can we do better than a B+ tree?
+
+    bitmap_index example
+            Table (stored in heap files)            bitmap_index (on retweet)
+        uniqueMsgID   | ... |  zip   | retweet        yes |  no  |  NULL
+        --------------|-----|--------|--------        ----|------|------
+        1             | ... |  11324 | yes            1   |  0   |  0
+        2             | ... |  53705 | yes            1   |  0   |  0
+        3             | ... |  53705 | no             0   |  1   |  0
+        4             | ... |  53705 | NULL           0   |  0   |  1
+        5             | ... |  90210 | no             0   |  1   |  0
+        ...           | ... |  ...   | ...            ... |  ... |  ...
+        1,000,000,000 | ... |  53705 |   yes          1   |  0   |  0
+
+        SELECT * FROM Tweets WHERE retweet = "no";
+          - Scan the "no" bitmap file
+          - For each bit set to 1, compute the tuple rid
+          - Fetch the tuple
+    
+    Critical issues
+        We need an efficient way to compute a bit position:
+          - Layout the bitmap in page-id order
+        We need an efficient way to map a bit position to a rid:
+          - Fix the #records per page in the heap file
+          - Lay the pages out so that page-ids are sequential and increasing
+          - Then construct rid (page-id, slot#)
+              page-id = bit-position / #records-per-page
+              slot# = bit-position % #records-per-page
+    
+    Other queries
+        With the above table we can do
+            SELECT COUNT(*) FROM Tweets WHERE retweet = "no";
+            SELECT * FROM Tweets WHERE retweet IS NOT NULL;
+        Or other tables with low/fixed number of options:
+            T(ID, ..., gender: M or F, is_faculty: yes or no)
+            SELECT * FROM T WHERE gender = 'F' AND is_faculty ='yes';
+
+    Storing a bitmap_index
+        One bitmap for each possible value (e.g., yes, no null)
+        Eac bitmap is stored in one file
+        Sie of each bitmap = #tuples bits
+
+      > Bitmaps can be compressed
+            When is a bitmap more space efficient than a B+ tree?
+            -> #bitmaps < index entry size in the B+ tree.
+
+Bit-slice index
+            Table (stored in heap files)            bitslice_index 
+        uniqueMsgID   | ... |  zip   | retweet           zip
+        --------------|-----|--------|--------      ----------------
+        1             | ... |  11324 | yes          00101110000111100
+        2             | ... |  53705 | yes          01101000111001001
+        3             | ... |  53705 | no           01101000111001001
+        4             | ... |  53705 | NULL         01101000111001001
+        5             | ... |  90210 | no           10110000001100010
+        ...           | ... |  ...   | ...          ...
+        1,000,000,000 | ... |  53705 |   yes        01101000111001001
+                                                    |               |
+                                                slide 16        slide 0
+                                                higher bit      lower bit
+                                                ->  00010111011100000 = 12000 in binary
+    Convert to binary (zip)
+    1 slide per bit + (possibly) one more for NULL
+      - slide 16 -> higher bit
+      - slide 0  -> lower bit
+    
+    e.g.
+        SELECT * FROM Tweets WHERE zip <= 12000;
+        Walk through each slide construing a result bitmap
+        e.g.
+            for <= 12000, we can skip entries that have 1 in the first three 
+            slices (16, 15, 14)
+
+    Other queries
+        We can also do aggregates with bit-slice indices:
+        e.g. SUM(attr): add bit-slice by bit-slice
+            > count the number of 1s in slice 16 and multiply the count by 2^16
+            > count the number of 1s in slice 15 and multiply the count by 2^15
+        We can store each slice using methods like what we have for a bitmap 
+        (we can compress them!)
+    
+Bitmap vs. Bit-slice Index
+    Bitmaps are better for low cardinality domains
+    Bit-slices are better for high cardinarlity domains
+    They are more space efficient than a B+ tree
+
+
