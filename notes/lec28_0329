@@ -1,0 +1,328 @@
+lec 28 03/29
+
+Relational Operators I
+
+Week 10
+    Relational Operators I      // this
+        Selection
+        Projection
+    Relational Operators II     // next
+        Join
+        Aggregation
+        Set Operators
+
+Outline
+    Selection
+        Access path
+        Clustered vs. unclustered
+        Index matching
+    Projection
+        Sort-based
+        Hash-based
+
+Architecture of a DBMS
+    SQL Query
+        |               <- query parser
+    Unoptimized lpan
+        |               <- query optimizer
+    Optimized plan
+        |               <- query executor
+    Data access
+        |               <- storage manager
+    IO access
+
+Logical vs. Physical Operators
+    Logical operators
+        What they do
+        e.g.: 
+            selection, project, join, grouping, union
+
+    Physical operators
+        how they are implemented
+        e.g. 
+            nested-loop join, sort-merge join, hash join, index join
+
+Example query
+    SELECT  S.sname
+    FROM    Sailors S, Reserves R
+    WHERE   S.sid = R.sid
+      AND   R.bid = 103;
+    
+    Questions:
+        How is σ_bid = 103 implemented?
+            - What if an index is built on R.bid?
+
+        How are the two relations joined?
+        
+    One possible execution plan:
+
+                Hash-based Project
+                        |
+                 Nested loop join
+                    /       \
+            Table scan    Index scan
+                |             |
+              Sailors      Reserves
+
+
+Selection
+    Selection Operator
+
+        Access path: 
+            Way to retrieve tuples from a table
+
+        File scan
+            - Scan the entire file
+            - IO cost = #pages in file
+
+        Index scan
+            - Use an index available on some predicate
+            - IO cost = varies depending on the index
+        
+        Selectivity:
+            Fraction of tuples that satisfy the selection condition
+
+    Access path example
+        SELECT  S.sname
+        FROM    Sailors S, Reserves R
+        WHERE   S.sid = R.sid
+          AND   R.bid = 103;
+        
+        Assume we have a B+ tree index on R.bid, how to access relation R?
+         -> Two ways to access relation R
+              1. scan all pages in relation R
+              2. use the index to access records satisfying R.bid = 103
+
+        Index scan cost
+            Hash index      ->  O(1) IOs
+              - We can only use it with equality predicates.
+            B+ tree index   ->  (height + X) IOs
+              - Clustered
+                    X = (#selected records)/(#records per page)
+              - Unclustered
+                    X = #selected tuples in the worst case
+             -> Optimization
+                    we can sort the rids by page number before we retrieve 
+                    them from the unclustered index.
+
+    Clustered vs. Unclustered B+ Tree
+        A relation with 1,000,000 records
+        100 records on a page
+        Height of B+ tree = 3
+        
+        IO cost     | 0.1% selectivity  | 1% selectivity |  10% selectivity
+        Clustered   |     3+10          |     3+100      |      3+1,000
+        Unclustered |     3+1,000       |     3+10,000   |      3+100,000
+        
+        By sorting the qualified rids by page number before retrieving them, 
+        we can avoid access the same pages multiple times.
+
+    General form of selection
+        Simple selection
+            - attribute op constant
+            - attribute1 op attribute2
+              op: <, <=, =, !=, >=, >
+        More complex selection examples
+            - bid=5 /\ sid = 3
+            - (day < '8/9/21' /\ rname = 'Joe') \/ bid=5 \/ sid = 3
+
+    Conjunctive Normal Form (CNF)
+        CNF: 
+            A collection of conjuncts that are connected through and /\
+            Each conjunct consists of one or more terms connected by or \/
+            - Conjuncts that contain \/ are said to contain disjunction
+
+        > Every selection condition can be expressed in CNF
+            e.g.
+            (day < '8/9/21' /\ rname = 'Joe') \/ bid=5 \/ sid = 3
+            is equivalent to
+            (day < '8/9/21' \/ bid=5 \/ sid=3) /\ (rname='Joe' \/ bid=5 \/ sid=3)
+
+    Index matching
+        An index matches a selection condition if the index can be used to 
+        retrieve tuples that satisfy the condition
+
+        e.g.
+            - Relation R(A, B, C, D)
+            - Hash index on composite key (A, B)
+
+        SELECT  *           SELECT  *           SELECT  *
+        FROM    R           FROM    R           FROM    R
+        WHERE   A=10        WHERE   A=5;        WHERE   A=5
+          AND   B=5;                              AND   B=5
+                                                  AND   C<4;
+
+        matches the         does not match      matches the index
+        indexes             the index
+
+    Index matching - Hash index
+        A hash index matches a selection condition if there is an equality 
+        predicate for each attribute in the search key.
+
+        Example: relation R(A,B,C,D)
+        
+        selection condition     hash index on (A,B,C)   hash index on (B)
+            A=5 AND B=3                  no                      yes
+            A>5 AND B<4                  no                      no
+            B=3                          no                      no
+            A=5 AND C>10                 no                      no
+            A=5 AND B=3 AND C=1          yes                     yes
+        A=5 AND B=3 AND C=1 AND D>6      yes                     yes
+
+    Index matching - B+ tree
+        A B+ tree index matches a selection condition if there is a term 
+        of the form attribute op value for each attribute in a prefix of 
+        search key.
+
+        Example: relation R(A,B,C,D)
+
+        selection condition     B+ Tree on (A,B,C)    B+ Tree on (B)
+            A=5 AND B=3                  no                 yes
+            A>5 AND B<4                  no                 no
+            B=3                          no                 no
+            A=5 AND C>10                 no                 no
+            A=5 AND B=3 AND C=1          yes                yes
+        A=5 AND B=3 AND C=1 AND D>6      yes                yes
+
+    Multiple Matches
+        A predicate can match more than one index
+            - Hash index on (A) and B+ tree inde on (B, C)
+            - Selection: A=7 AND B=5 AND C=4
+
+        We have multiple possible access paths
+          1. Use the hash index, then check the conditions B=5, C=4 for every 
+             retrieved tuple.
+          2. Use the B+ tree, then check the condition A=7 for every retrieved 
+             tuple.
+          3. Use both indexes, intersect the rid sets, and only then fetch the 
+             tuples (sorting the pafe number in rid can reduce #IOs)
+
+
+    Selection with disjunction
+        If a subset of terms in a disjunction has matching indexes
+            - A=7 OR B>5
+            - Hash index on (A)
+            - We must perform a file scan. The index cannot be used.
+        If every term in a disjunction has a matching index
+            - A=7 OR B>5
+            - Hash index on (A), B+ tree on (B)
+            - We can retrieve candidate tuples using the indexes and take the
+              union of the rid.
+
+        Exercise
+            What are the access paths for the following example?
+                Hash index on (A) B+ tree on (B)
+                (A=7 OR C>5) AND B>5
+
+            Access path 1: file scan
+            Access path 2: index scan using B+ tree, then filter according 
+                           to the first conjunct 
+            The hash index cannot be used in this example
+
+        Choosing the right index
+            _Selectivity_ of an access path = fraction of tuples that need to 
+                                              be retrieved
+            We want to choose the most selective path.
+            Estimating the selectivity of an access path is generally a hard 
+            problem
+        
+        Estimating selectivity
+            Selection: A=3
+            Hash index on (A)
+
+            If know the number of unique search keys in the index (#keys)
+            The selectivity can be approximated by: 1/#keys
+                - Assuming that the values are distributed uniformly across 
+                  the tuples
+            
+            Selection: A=3 AND B=4 AND C=5
+            Hash index on (B, A)
+
+            If dont know the #keys for the index, we can estimate selectivity 
+            as follows:
+                - Multiply the selectivity for each conjunct
+                - If #keys is not know for an attribute, use 1/10 as default va;ue
+                - This assumes independence of the attributes!
+
+            Selection: A>10 AND A<60
+            B+ tree index on (A)
+            If we have a range condition, a DBMS typically assumes that the
+            values are uniformly distributed
+            The selectivity will be approximated by interval/(High-Low)
+
+            Example: if A takes values in [0, 100] then the selectivity will be
+                     ~ (60-10)/(100-0) = 50%
+
+        Exercise
+            1,000,000 records, 100 records per page
+            Selection: A=3 AND B=5 AND C>10
+            Hash index on (A) #keys=100,000
+            Clustered B+ tree index on (C) max=15, min=0
+
+            What are the access paths and the associated IO cost?
+                - Access path 1: 
+                    use hash index and then filter B=5 and C>10
+                    cost = 1000k records/ #keys = 10 IOs
+                - Access path 2:
+                    use B+ tree index and then filter A=3 and B=5
+                    cost = (15-10)/15*(1,000,000/100) = 3333 IOs
+
+            What if the B+ tree on (C) is unclustered?
+        
+Project operator
+    Simple case: SELECT R.A, R.D
+        - Scan the file and for each tuple output R.A, R.D
+
+    Hard case: SELECT DISTINCT R.A, R.D
+        - Project out the attributes
+        - Eliminate duplicate tuples        // this is the difficult part
+
+    Two approaches to eliminate duplicates
+        - Sort-based
+        - Hash-based
+
+    Project - Sort-based
+        Steps
+            1. Scan the relationa nd project out the attributes;
+            2. Sort the resulting set of tuples using all attributes;
+            3. Scan the sorted set by comparing only adjacent tuples and 
+               discard duplicates.
+        Optimization
+            - In pass 0 of sorting, project out the attributes 
+              (merge step 1 and pass 0 of step 2)
+            - In subsequent passes, eliminate the duplicates while merging the 
+              runs
+
+    Project - Hash-based
+        Phase 1: partitioning
+            - Project out attributes and split the input into B-1 partitions 
+              using a hash function h
+
+        Phase 2: duplicate elimination
+            - Read each partition into mem and use an in-mem hash table (with 
+              a different hash function) to remove duplicates
+            - If the partition does not fit into mem, run phase 1 recursively 
+              to partition into smaller pieces.
+
+
+    Sort-based vs. Hash-based
+        Benefits of sort-based approach
+            - Better handling of skew (one hash partition is bigger than others)
+            - The result is sorted
+        For a large enough buffer pool, both algo need 2 passes
+            - Sort-based:   2-pass external merge sort
+            - Hash-based:   partitioning + duplicate elimination
+    
+    Project - index-only scan
+        Index-only scan
+            - Projection attributes are a subset of index attributes
+            - Apply projection algo only to index entries, no need to access records
+            
+        If an ordered index contains all projection attributes as prefix of
+        search key:
+            1. Retrieve index data entries in order
+            2. Discard unwanted fields
+            3. Compare adjacent entries to eliminate duplicates
+
+Summary...
+
