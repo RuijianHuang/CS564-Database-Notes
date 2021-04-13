@@ -23,7 +23,7 @@ Outline
 Architecture of a DBMS
     SQL Query
         |               <- query parser
-    Unoptimized lpan
+    Unoptimized plan
         |               <- query optimizer
     Optimized plan
         |               <- query executor

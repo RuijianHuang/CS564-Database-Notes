@@ -27,10 +27,10 @@ Architecture of storage manager
 
 File organization
     So far we have seen heap files
-        unordered data
-        support scanning all records in a file
-        support retrieving by record id (rid)
-    but what if we want to find a recrd satisfying a certain predicate
+        Unordered data
+        Support scanning all records in a file
+        Support retrieving by record id (rid)
+    but what if we want to find a record satisfying a certain predicate
         e.g.: all employees with salary > 5000
         e.g.: the department with name "computer science"
 
@@ -46,8 +46,8 @@ Motivating example
         WHERE   Sales.date > "03-15-2021"
           AND   Sales.date <= "03-15-2021"
 
-    What happens if the data is storated in a heap file?
-        We need to scane all pages of the file to return the correct result
+    What happens if the data is stored in a heap file?
+        We need to scan all pages of the file to return the correct result.
 
 Alternative file organization
     We can speed up the query execution by better organizing the data in a file.
@@ -123,7 +123,7 @@ Index basics
 
 Index entry design
     index_entry
-        for a value k of the searcg key, it can take two forms:
+        for a value k of the search key, it can take two forms:
             Design 1: the record with key value k
             Design 2: <k, rid of record(s) with search key value k>
 
