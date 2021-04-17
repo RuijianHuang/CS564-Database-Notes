@@ -140,7 +140,7 @@ Selection
 
     Index matching
         An index matches a selection condition if the index can be used to 
-        retrieve tuples that satisfy the condition
+        retrieve tuples that satisfy the condition.
 
         e.g.
             - Relation R(A, B, C, D)
@@ -164,29 +164,29 @@ Selection
         selection condition     hash index on (A,B,C)   hash index on (B)
             A=5 AND B=3                  no                      yes
             A>5 AND B<4                  no                      no
-            B=3                          no                      no
+            B=3                          no                      yes
             A=5 AND C>10                 no                      no
             A=5 AND B=3 AND C=1          yes                     yes
         A=5 AND B=3 AND C=1 AND D>6      yes                     yes
 
     Index matching - B+ tree
         A B+ tree index matches a selection condition if there is a term 
-        of the form attribute op value for each attribute in a prefix of 
+        of the form (attribute op value) for each attribute in a PREFIX of 
         search key.
 
         Example: relation R(A,B,C,D)
 
         selection condition     B+ Tree on (A,B,C)    B+ Tree on (B)
-            A=5 AND B=3                  no                 yes
-            A>5 AND B<4                  no                 no
-            B=3                          no                 no
-            A=5 AND C>10                 no                 no
+            A=5 AND B=3                  yes                yes
+            A>5 AND B<4                  yes                yes
+            B=3                          no                 yes
+            A=5 AND C>10                 yes                no
             A=5 AND B=3 AND C=1          yes                yes
         A=5 AND B=3 AND C=1 AND D>6      yes                yes
 
-    Multiple Matches
+    Multiple Index Matches
         A predicate can match more than one index
-            - Hash index on (A) and B+ tree inde on (B, C)
+            - Hash index on (A) and B+ tree index on (B, C)
             - Selection: A=7 AND B=5 AND C=4
 
         We have multiple possible access paths
@@ -195,7 +195,7 @@ Selection
           2. Use the B+ tree, then check the condition A=7 for every retrieved 
              tuple.
           3. Use both indexes, intersect the rid sets, and only then fetch the 
-             tuples (sorting the pafe number in rid can reduce #IOs)
+             tuples (sorting the page number in rid can reduce #IOs)
 
 
     Selection with disjunction
@@ -241,7 +241,7 @@ Selection
             If dont know the #keys for the index, we can estimate selectivity 
             as follows:
                 - Multiply the selectivity for each conjunct
-                - If #keys is not know for an attribute, use 1/10 as default va;ue
+                - If #keys is not know for an attribute, use 1/10 as default value
                 - This assumes independence of the attributes!
 
             Selection: A>10 AND A<60

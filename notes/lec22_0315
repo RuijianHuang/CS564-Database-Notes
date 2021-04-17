@@ -145,7 +145,7 @@ Index entry design
 
           - The index structure is by itself a file organization for records 
                 (vs. a heap file)
-          - At most one such index on a given tble (to avoid duplicate)
+          - At most one such index on a given table (to avoid duplicate)
           - Index entry is relatively large.
         
         index_entry design 2
@@ -154,7 +154,7 @@ Index entry design
                   - search_key: {zipcode}
                   - hash_function h: last 2 digits of zipcode modulo 4
 
-                          | index_entries       primary_pages??
+                          | index_entries       entries in data file
                 bucket 0  | 53400           -> (John, 53400, 7263723679)
                           | 54768           -> (Alice, 54768, 2817987238)
                 bucket 1  | 53409           -> (Mike, 53409, 9871987329)
@@ -179,7 +179,7 @@ Primary vs. secondary
             an index is called an unique_index if the search_key contains a 
             candidate key.
     
-    Alternative secondary_index design (see lec22.pdf p26-28 for figures)
+    Alternatives secondary_index design (see lec22.pdf p26-28 for figures)
         1. primary_index stores records, secondary_index stores rid
         2. both primary_index and secondary_index store rid
         3. secondary_index store the primary_key
@@ -237,6 +237,6 @@ Evaluating and choosing indexes
           - The order of attributes is important for range queries.
           - Some indexes enable index-only strategies for queries.
             e.g.:
-            SELECT  COUT(*)
+            SELECT  COUNT(*)
             FROM    Student
             WHERE   Student.age = 20;

@@ -17,7 +17,7 @@ Outline
     Bit-slice index
 
 B+ tree duplicates
-    Duplicate_keys: many index entries with the same key valye
+    Duplicate_keys: many index entries with the same key value
     Solution #1
         - all entries with a given key value reside on a single page
         - use overflow_pages
@@ -33,8 +33,8 @@ B+ tree Parameters
         Properties
           - compared to binary trees (fan-out = 2), B+ trees have a high fan-out 
             (d+1<=f<=2d+1)
-          - the fan-out of B+ trees is dunamic and depends on the key/record size,
-            but we will typically assume it is consant for our cost model
+          - the fan-out of B+ trees is dynamic and depends on the key/record size,
+            but we will typically assume it is constant for our cost model
     
     Fill_factor F
         Definition
@@ -63,10 +63,10 @@ B+ tree Parameters
             number of records = 2,000,000
 
         Assumptions
-            We assume that the index entries store only 
-                the search_key and
-                the address of tuple
-            We assume no duplicate entries
+            We assume that the index entries store only:
+              - the search_key and
+              - the address of tuple
+            We assume no duplicate entries.
         
         What is the order d and fan-out f?
             - each non-leaf-node stores up to 2d keys + (2d+1) addresses
@@ -162,6 +162,7 @@ Bitmap index
         With the above table we can do
             SELECT COUNT(*) FROM Tweets WHERE retweet = "no";
             SELECT * FROM Tweets WHERE retweet IS NOT NULL;
+
         Or other tables with low/fixed number of options:
             T(ID, ..., gender: M or F, is_faculty: yes or no)
             SELECT * FROM T WHERE gender = 'F' AND is_faculty ='yes';

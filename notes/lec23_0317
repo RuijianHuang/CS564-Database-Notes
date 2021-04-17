@@ -19,7 +19,7 @@ Outline
 
 Static hashing
     A hash_index is a collection of buckets
-      - bucket = primary_page + overflow_pages
+      - bucket = primary_page + overflow_page(s)
       - each bucket contains one or more index entries
       - can use either design 1 or 2
             (We use design 1 (i.e. records) in this lec)
@@ -65,6 +65,7 @@ Hash functions
     A good hash function is
         -> uniform:     each bucket is assigned the same number of key values
         -> fast to compute
+
     A hash function h of the form h(value) = (a*value + b) works well in prac
         constants a and b can be chosen to tune the hash function.
 
@@ -72,26 +73,30 @@ Limitation of static hashing
     In static hashing, there is a fixed number of buckets in the index
       - if the database grows, the number of buckets will be too small: long 
         overflow chains degrade performance
-      - if the database shrinks, space is wasteed due to empty buckets
+      - if the database shrinks, space is wasted due to empty buckets
     
     Rehashing?
       - Double the bucket count and redistribute data
         Problems:
-            Expensive computation and data movement
-            Block query execution
+          1.Expensive computation and data movement
+          2.Block query execution
 
 
 Extensible hashing
-    intuition:
+    Intuition:
         when a bucket overflows, reorganize only the overflowing bucket (rather 
         than all buckets)
     
     Definitions
         global_depth
             how many bits to use to find the bucket
+            (in so-called "directory", e.g., 00->bucket1, where 00 is the entry 
+            in directory with a global_depth = 2 which corresponds to bucket1)
 
         local_depth
             ???
+            kinda like a number to keep track of how many times dir has been 
+            split
 
         directory
             stores pointers to records/entries(?)
@@ -113,15 +118,15 @@ Extensible hashing
         If there are spaces left within a bucket:
             insert into that bucket directly.
         Else if the targeted bucket is full:
-            1. allocate a new bucket and redistribute entries (consider the last 3 bits)
-            2. double the directory
+            1. Allocate a new bucket and redistribute entries (consider the last 3 bits)
+            2. Double the directory
                 - bucket split
                 - global_depth & local_depth adjustment
             
     Bucket split
-        - originally pointers and buckets are one-to-one
-        - after doubling pointers and buckets are "many-to-one"?
-        - the splited bucket gets one pointer and another to the 
+        - originally, pointers to buckets are one-to-one
+        - after doubling, pointers to buckets (not-split) are "many-to-one"
+        - the split bucket gets one pointer and another to the 
           newly allocated one 
 
     Global and Local Depth

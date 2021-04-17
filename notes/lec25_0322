@@ -39,7 +39,7 @@ B+ tree index
     Basic structure
                           root-node
                         /           \
-                non-leaf-node1      non-leaf-node2
+                non-leaf-node        non-leaf-node
                /       |      \            |       \
       leaf-node<->leaf-node<->leaf-node<->leaf-node<->leaf-node
 
@@ -68,10 +68,10 @@ B+ tree index
     Example
         order d = 2
                                 || 60 ||
-                            /            \
+                               /        \
                   || 20 || 40 ||        || 70 || 80 || 90 ||
-                  /      |       \           \
-          ||5||12<->||25||34||35<->||55||58<->||62||53||64<->...
+                 /       |      \           \
+         ||5||12<->||25||34||35<->||55||58<->||62||53||64<->...
            |  |      |   |   |      |   |      |   |   |      |...
           ... ...   ...  ... ...   ...  ...   ... ... ...    ...
         
@@ -93,7 +93,7 @@ B+ tree Operations
         Examine the index entries in non-leaf-nodes to find the correct child
         Traverse down the tree until a leaf node is reached
           - For equality_search, we are done
-          - For range_search, traver the leaves sequentially using the prev/next
+          - For range_search, traverse the leaves sequentially using the prev/next
             pointers.
         e.g. see L25.pdf p17
 
@@ -109,10 +109,10 @@ B+ tree Operations
 
         Properties
             The B+ tree insertion algo has several attractive qualities:
-              - Aboud the same cost as equality_search
+              - About the same cost as equality_search
               - self-balancing: 
                     the tree remains balanced (w.r.t. height) even after 
-                    multiple insetions
+                    multiple insertions
     Deletion
         Find the leaf-node where entry belongs
         Remove the entry
