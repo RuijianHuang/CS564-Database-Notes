@@ -1,0 +1,211 @@
+lec 32 04/07
+
+Query optimization I
+
+Week 11
+    Query optimization I    // this
+        - Plan generation
+    Query optimization II   // next
+        - Cost estimation
+
+Outline
+    Optimization example
+    Plan enumeration
+
+Same query, different cost
+    - Relational query language allows a database to evaluate a query in many 
+      different ways
+    - Difference in cost between best and worst plans may be several orders of 
+      magnitude
+    - Query optimizer:
+          Generates alternative plans and choose the plan with the least 
+          estimated cost
+
+Architecture of an optimizer
+    SQL query
+        |       Query parser
+    Unoptimized plan
+        |       Query optimizer         \
+        |         > Plan generator       > System catalog
+        |         > Plan cost estimator /
+    Optimized plan
+
+Example
+                π_sname             
+                   |                SELECT  S.name
+        σ_(bid=100 /\ rating >5)    FROM    Sailors S, Reserves R
+                   |                WHERE   S.sid = R.sid
+                 join                 AND   R.bid = 100
+                /    \                AND   S.rating > 5
+         Reserves     Sailors       
+
+                         | tuple size | #tuples per page | #pages
+                Reserves | 40bytes    | 100              | 1000
+                Sailors  | 50bytes    | 80               | 500
+
+    Convention:
+        left child is the outer table
+
+    Assume:
+        1% tuples in Reserves satisfy bid = 100, and 
+        50% tuples in Sailors satisfy rating > 5.
+
+    Example: Plan 1:
+                                π_sname         
+                                   |                Materilize
+                        σ_(bid=100 /\ rating >5)
+                                   |                Materilize
+                                 join               Page-based nested loop join
+                                /    \          
+                         Reserves     Sailors   
+
+        Materialize:
+            Create a temporary table to hold the intermediate results
+
+        Join IO cost: M_R + M_R * M_S = 1000 + 1000 * 500 = 501,000
+        Join output size:
+            100 * 1000 * (40+50)/4000 = 2250                            // ??? what is 4000
+            Each tuple in Reserves joins with one tuple in Sailors
+        Selection output size
+            2250 * 1% * 50% =~ 11
+        
+        Total IO cost:
+            501,000 + 2250 * 2 + 11 * 2 = 505,522 IOs
+
+
+Pipilined Evaluation
+    Result of one operator pipelined to another operator without materializing 
+    the intermediate result
+
+    e.g.,
+            π // on-the-fly                 join
+            |                               /  \    // the 1st join pipelined into the 2nd join
+            σ // on-the-fly               join  C
+            |                             /  \
+          join                           A    B
+           / \
+          A   B
+
+    
+    Example Plan 2:
+                                π_sname             // on-the-fly
+                                   |
+                        σ_(bid=100 /\ rating >5)    // on-the-fly
+                                   |
+                                 join               // Page-based nested loop join
+                                /    \          
+                         Reserves     Sailors   
+
+        Total cost = join IO cost: 501,000
+
+Push selections
+    A join is relatively expensive
+    Good heuristic: reduce join table sizes as much as possible
+
+    Approach 1: apply selection early
+
+    Example Plan 3:
+                                π_sname             // on-the-fly
+                                   |
+                                  join              // sort-merge join
+                                 /    \
+     materialize to T1 -> σ_bid=100   σ_rating>5 <- materialize to T2
+                              |           |
+                           Reserves     Sailors
+
+        Selection on Reserves
+          - input: 1000 pages, output: 10 pages
+
+        Selection on Sailors
+          - input 500 pages, output: 250 pages
+
+        Sort merge join
+          - Sort Reservation:   2*2*10 = 40 IOs
+          - Sort Sailors:       2*4*250 = 2000 IOs
+          - Merge:              10+250 = 260 IOs
+        
+        Total IO cost = selection cost + join cost
+                      = (1000+10+500+250) + (40+2000+260)
+                      = 4060 IOs
+
+Using index
+    Example Plan 4:
+                                π_sname
+                                   |
+                                σ_rating>5
+                                   |
+                                 join   // Index nested loop join with pipelining
+                                /    \
+           Index scan-> σ_bid=100   Sailors
+                            |
+                         Reserves
+
+        Index scan on Reserves:     10 pages
+        Index loopup on Sailors:    1200 IOs (assume 1.2 IOs per loopup)
+
+
+Plan Enumeration
+    The space of possible query plans is huge and it is hard to navigate
+        - Access path (file scan, index scan)
+        - Join algo
+        - Join order
+        - Push down selection & projection
+        - Sorting
+        - etc.
+    
+    Relational algebra provides rules that transform one RA expression to an 
+    equivalent one
+        - Push down selections & projections
+        - Join reordering
+
+    These transformations allow us to construct many alternative query plans.
+
+
+Equivalence
+    Selections:
+        Cascading of selections:
+            σ_(c1 /\ c2 /\ ... /\ cn)R = σ_c1(σ_c2(σ_c3(...(σ_cn(R)))))
+
+        Commutativity:
+            σ_c1(σ_c2(R)) = σ_c2(σ_c1(R))
+
+    Projection
+        Cascading of projections
+            - Successively eliminating columns from a relation is equivalent to 
+              simply eliminating all but the columns retained by the final 
+              projection
+        e.g.,
+            π_a1 = π_a1(π_a1(...(π_an(R))))
+
+    Join
+        Commutative 
+            R \join S = S \join R
+
+        Associative
+            R \join (S \join T) = (R \join S) \join T
+        
+
+Join orders
+    Types
+        Give A \join B \join C \join D
+
+                    join              join               join
+                   /    \            /    \             /    \
+                join     D        join     D        join      join
+               /    \            /    \            /    \    /    \
+            join     C          C     join        A      B   C     D
+           /    \                    /    \
+           A    B                    A     B
+
+               Left-deep              Linear             Bushy
+
+    Many db consider only left-deep plans, for the following two reasons
+        - As the number of joins increases, the number of alternative plans 
+          increases rapidly and it becomes necessary to prune
+        - Left deep trees allow us to generate fully pipelined plans, in which 
+          all joins are evaluated using pipelining.
+
+    Remarks
+        Results of left-deep join order can pipeline result all the way up.
+
+
