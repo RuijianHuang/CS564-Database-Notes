@@ -1,0 +1,185 @@
+lec 29 03/31
+
+Relational Operators II
+
+Week 10
+    Relational Operators I
+        Selection
+    Relational Operators II     // this
+        Projection
+        Join
+        Aggregation
+        Set Operators
+
+Outline
+    Projecition
+        Sort-based
+        Hash-based
+    Join
+        Nested loop join
+        Block nested loop join
+        Index nested loop join
+        Sort merge join
+        Hash join
+    Set operators and aggregation
+
+Projection Operator
+    // last lecture note
+
+Join:
+    Nested Loop Join
+        Tuple Granularity
+            for each tuple t_r in R                 // outer loop
+                for each tuple t_s in S             // inner loop
+                    join t_r with t_s if the join condition is satisfied
+        
+            IO cost = M_R + M_S * T_R
+                - M_R = number of pages in R
+                - M_S = number of pages in S
+                - T_R = number of tuples in R
+
+            > Note that we ignore the cost of writing output to disk.
+            
+        Page Granularity
+            for each page P_r in R                  // outer loop
+                for each page P_s in S              // inner loop
+                    join tuples in P_r with tuples in P_s
+
+            IO cost = M_R + M_S * M_R
+
+            > Requires more CPU computation for each loop iteration
+
+        Remarks
+            Which relation should be the outer relation?
+                The smaller of the two relations.
+            How many buffer frames do we need?
+                3 frames would suffice.
+
+        Block nested loop join
+            for each block of (B-2) pages in R          // outer loop
+                for each pages P_s in S                 // inner loop
+                    join tuples in the block with tuples in P_s
+
+            B = number of pages i buffer pool
+
+            IO cost = M_R + M_S * ceiling(M_R/(B-2))
+                - if R gits in mem, the IO cost becomes M_R + M_S
+
+            > Does blocking require more overall computation?
+
+        Nested Loop Join Summary
+                            IO cost                         e.g. M_R=500, M_s=1000, T_R=50,000, B=12
+        Tuple granularity   M_R + M_S * T_R                 500+5*10^7 IOs
+        Page granularity    M_R + M_S * M_R                 500,500 IOs
+        Block               M_R + M_S * ceiling(M_R/(B-2))  50,500 IOs
+
+    Index Nest Loop Join
+        for each tuple t_R in R
+            probe the index of S to retrieve matching tuples
+        
+        Given that S has an index on the join attribute
+        IO cost = M_R + |T_R| * I^*
+            - I^* is the IO cost of searching an index, and depends on the type
+              of index and whether it is clustered or not.
+    
+    Sort Merge Join
+        Basic version
+            Steps
+                1. Sort R and S on the join attribute using external merge sort
+                2. Read the sorted relations in the buffer and merge
+            If R and S are already sorted on the join attribute, we can skip 
+            the first step.
+
+        Examples
+        1. no duplicates
+                            Disk
+                R(A, B): (1, x), (3, y), (5, z)
+                S(A, C): (1, a), (2, b), (3, c)
+
+                    Actions in buffer (#frames=3)
+            read: (1, x) (1, a)     write: (1, x, a)    // matched, write out to disk using 3rd frame
+            read: (1, x) (2, b)     write:              // 1<2, read from R next
+            read: (3, y) (2, b)     write:              // 3>2, read from S next
+            read: (3, y) (3, c)     write: (3, y, c)    // matched, write out to disk using 3rd frame
+            ...
+
+        2. duplicates - multiple records share the same join key
+                            Disk
+                R(A, B): (1, x), (1, y), (5, z)
+                S(A, C): (1, a), (1, b), (3, c)
+            
+                    Actions in buffer (#frames=3)
+            read: (1, x) (1, a)     write: (1, x, a)    // matched, write to disk
+            read: (1, x) (1, b)     write: (1, x, b)    // matched, write to disk
+            read: (1, x) (3, c)     write:              // need to backup to compute the full result
+            read: (1, y) (1, a)     write: (1, y, a)    // matched, write to disk
+            read: (1, y) (1, b)     write: (1, y, b)    // matched, write to disk
+
+        IO cost
+            If no backup, IO cost of read + merge is M_R + M_S;
+                - i.e., #pages in R + #pages in S
+            If backup, in the worst case, the IO cost could be M_R * M_S;
+            
+            Total IO cost: ~ sort(R) + sort(S) + M_R + M_S
+
+        Optimization
+            Generate sorted runs for R and S
+            Merge the sorted runs for R and S
+              - while merging, check for the join condition and output the join tuples.
+
+            IO cost ~ 3(M_R + M_S)
+            Requires a buffer size B to be sufficiently large (B^2 > max(M_R, M_S))
+
+    Hash Join
+        If neither relations fits in mem
+
+        Partition phase:
+            Partition both relations R and S using a different hash function h2
+
+        Build & probing phase:
+            For each pairs of partitions, if the smaller partition fits in mem, 
+            build a hash table and probe.
+
+    General Join Conditions
+        Equalities over multiple attributes:
+            - e.g., R.sid = S.dis and R.rname = S.snamee
+
+            For index nested loop join: 
+                requires matching index
+
+            For sort-merge join or hash join:
+                we can sort or hash using the combination of join attributes
+                
+        Inequality conditions:
+            - e.g., R.rname < S.rname
+            
+            Sort-merge and hash join are not applicable.
+            Nested loop join can always be applied.
+
+Set operations
+    Intersection is a special case of a join.
+
+    Union & difference: 
+      - 2 approaches to remove duplicates (similar to projection).
+
+    Sort-based:
+      - sort both relations (on all attributes);
+      - merge sorted relations eliminating duplicates.
+
+    Hash-based:
+      - partition R and S;
+      - build in-mem hash table for partition R;
+      - probe with tuples in S, add to table if not a duplicate.
+
+Aggregation
+    Sort on group by attributes (if any)
+      - Scan sorted tuples, computing running aggregate (max, min, sum, count)
+      - When the group by attribute changes, output aggregate result
+      > cost = sorting cost
+
+    Hash on group by attributes (if any)
+      - Hash entry = group attributes + running aggregate
+      - Scan tuples, probe hashtable, update hash entry
+      - Scan hash table, and output each hash entry
+      > cost = scan relation + hashing
+

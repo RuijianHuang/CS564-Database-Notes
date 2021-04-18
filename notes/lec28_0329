@@ -283,7 +283,7 @@ Project operator
 
     Project - Sort-based
         Steps
-            1. Scan the relationa nd project out the attributes;
+            1. Scan the relation and project out the attributes;
             2. Sort the resulting set of tuples using all attributes;
             3. Scan the sorted set by comparing only adjacent tuples and 
                discard duplicates.
