@@ -1,0 +1,126 @@
+lec 33 04/09
+
+Query optimization II
+
+Week 11
+    Query optimization I    // last
+        - Plan generation
+    Query optimization II   // this
+        - Cost estimation
+
+Outline
+    System catalog
+    Cost estimation
+
+Architecture of an optimizer
+    SQL query
+        |       Query parser
+    Unoptimized plan
+        |       Query optimizer         \
+        |         > Plan generator       > System catalog
+        |         > Plan cost estimator /
+    Optimized plan
+
+System catalog
+    Catalog table
+        Special tables that store the descriptive information of every table 
+        and index
+
+    Information in the catalog
+        for each table
+            > table name, file name, file structure (e.g., heap file)
+            > attribute name and type of each attribute
+            > integrity constraint (e.g., primary_key and foreign_key)
+
+        for each index
+            > index name and the structure of the index (e.g., clustered?)
+            > search_key attribute
+
+        for each view
+            > view name and definition (e.g., materialized?)
+
+Cost estimation
+    Statistics about tables and indexes
+
+        Table cardinality
+            The number of tuples NTuples(R) for each table R
+
+        Table size
+            The number of pages NPages(R) for each table R
+
+        Index cardinality
+            The number of distinct key values NKeys(I) for each index I
+
+        Index size
+            The number of pages INPages(I) for each index I 
+            (for a B+ tree index, we take INPages to be #leafPages)
+
+        Index height
+            The number of nonLeaf levels IHeight(I) for each index I
+
+        Index range
+            The min present key value ILow(I) and
+            the max present key value IHigh(I) for each index I
+
+    Cost Estimation
+        Estimating the cost of a query plan involves
+
+            1. Estimating the cost of each operation in the plan
+                - depends on input cardinalities
+                - algo cost
+
+            2. Estimating the size of intermediate results
+                - we need stats about input relations
+                - for selections and joins, we typically assume independence of 
+                  predicate
+
+    Estimating result size
+        Consider the following query block
+            SELECT  attr list
+            FROM    relation list
+            WHERE   term1
+              AND   term2
+              ...
+              AND   termn
+
+        We associate each term with a reduction_factor
+            reduction_factor
+                ratio of the expected result size to the input size.
+
+        Estimated output size = 
+            max size * (product of reduction_factors for all terms/conditions)
+
+    reduction_factor
+        format of terms         reduction_factor
+      1 column = value          if have index I: 1/NKeys(I), else 1/10
+      2 column1 = column2       if have index I1 & I2: 1/max(NKeys(I1), NK(I2))
+                                if have one index (e.g., I1): 1/NKeys(I1)
+      3 column > value          if have index I: (High(I)-value)/(High(I)-Low(I))
+                                else: arbitrary value less than 0.5 (e.g., 1/3)
+      4 column in list(vals)    (reduction_factor of column = value) * #(items in list)
+
+        1: 
+            Assume uniform distribution
+            If we have more stats (i.e., #(distinct values)), can do better than 1/10
+        2:
+            Assumes each key in the index witrh smaller cardinality has a 
+            matching value in the other index.
+        
+Improved stats - histogram
+    Consider column > value, we can estimate reduction_factor by
+    (High(I)-value)/(High(I)-Low(I)) which assumes uniform distribution
+
+    We can approximate the distribution more accurately with a histogram.
+    
+System R Optimizer
+    Use stats about the database instance to estimate the cost of a query 
+    evaluation plan;
+    
+    Consider only plans with binary joins in which the inner relation is a base 
+    relation;
+
+    Optimize on the class of SQL queries without nesting;
+
+    Not to perform duplicate elimination for projections (except final step);
+
+    Cost model that accounts for both CPU and IO costs.
