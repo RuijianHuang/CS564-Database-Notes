@@ -75,7 +75,10 @@ Example
 
 Pipilined Evaluation
     Result of one operator pipelined to another operator without materializing 
-    the intermediate result
+    the intermediate results.
+        i.e., a result produced by a join can be immediately tested with the 
+        selection and projection conditions, if they are satisfied, the result 
+        is materialized into the final output, if not, this result is discarded.
 
     e.g.,
             π // on-the-fly                 join
@@ -147,14 +150,14 @@ Using index
 Plan Enumeration
     The space of possible query plans is huge and it is hard to navigate
         - Access path (file scan, index scan)
-        - Join algo
+        - Join algo (merge-sort, hash, nested-loop, index join)
         - Join order
         - Push down selection & projection
         - Sorting
         - etc.
     
     Relational algebra provides rules that transform one RA expression to an 
-    equivalent one
+    equivalent one (for which we can optimize through push down, etc.)
         - Push down selections & projections
         - Join reordering
 
@@ -184,6 +187,7 @@ Equivalence
         Associative
             R \join (S \join T) = (R \join S) \join T
         
+    more examples... see L23.pdf
 
 Join orders
     Types
@@ -199,10 +203,17 @@ Join orders
 
                Left-deep              Linear             Bushy
 
+        Left-deep:  the right child is always a base table
+        Linear:     one of the child is always a base table
+        Bushy:      there might be a join operator where its both inputs are 
+                    joined results.
+
     Many db consider only left-deep plans, for the following two reasons
+
         - As the number of joins increases, the number of alternative plans 
           increases rapidly and it becomes necessary to prune
-        - Left deep trees allow us to generate fully pipelined plans, in which 
+
+        - Left deep trees allow us to generate _fully_pipelined_ plans, in which 
           all joins are evaluated using pipelining.
 
     Remarks

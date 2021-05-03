@@ -60,10 +60,10 @@ Join:
                 for each pages P_s in S                 // inner loop
                     join tuples in the block with tuples in P_s
 
-            B = number of pages i buffer pool
+            B = number of pages in buffer pool
 
             IO cost = M_R + M_S * ceiling(M_R/(B-2))
-                - if R gits in mem, the IO cost becomes M_R + M_S
+                - if R fits in mem, the IO cost becomes M_R + M_S
 
             > Does blocking require more overall computation?
 
@@ -131,18 +131,23 @@ Join:
             Requires a buffer size B to be sufficiently large (B^2 > max(M_R, M_S))
 
     Hash Join
-        If neither relations fits in mem
+        When the smaller relation (e.g., S) fits in memory
+            Build Phase:
+                Build a hash table on S (using hash function h)
+            Probing Phase:
+                For each tuple in R, probe the hash table for a match.
 
-        Partition phase:
-            Partition both relations R and S using a different hash function h2
+        If neither relations fits in mem:
+            Partition phase:
+                Partition both relations R and S using a different hash function h2
 
-        Build & probing phase:
-            For each pairs of partitions, if the smaller partition fits in mem, 
-            build a hash table and probe.
+            Build & probing phase:
+                For each pairs of partitions, if the smaller partition fits in mem, 
+                build a hash table and probe.
 
     General Join Conditions
         Equalities over multiple attributes:
-            - e.g., R.sid = S.dis and R.rname = S.snamee
+            - e.g., R.sid = S.dis and R.rname = S.sname
 
             For index nested loop join: 
                 requires matching index
