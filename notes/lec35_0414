@@ -1,0 +1,139 @@
+lec 35 04/14
+
+Weeks 12-13
+    Transaction_Management I
+        Basic concept
+        ACID properties
+
+    Transaction_Management II       // this
+        Concurrency control
+
+    Transaction_Management III
+        Logging
+
+Outline
+    Two-phase locking (2PL)
+        - Deadlocks avoidance
+        - Isolation revisit
+        
+    Optimistic concurrency control (OCC)
+    Multi-version concurrency control (MVCC)
+
+Locking-based concurrency control
+    Concurrency control usually done via locking
+        Store (XID, RID, Mode) tripes
+
+            XID = transaction id  // which transaction
+            RID = row id          // is modifying which row
+            Mode = {S, X}         // in which mode
+
+        Mode: {S, X}
+
+            S = shared_lock:    am reading, none shall write
+            X = exclusive_lock: am writing, none shall read
+
+        Lock compatibility table:   S X
+                                  S Y N
+                                  X N N
+        
+    Lock conflict: locks with incompatible types
+        - ww, wr, rw conflicts (no rr conflict)
+    
+    If a transaction cannot get a lock
+        Suspended on a wait queue
+
+Two-phase Locking
+    Definition
+        - If T wants to read (write) an object, first obtain a S (X) lock
+        - If T releases any lock, it can acquire no new locks.
+          -> leads to growing/shrinking phases
+
+        - 2PL guarantees serializability!
+              
+    Strict 2PL
+        - Hold all locks until end of a transaction
+        - Guarantees serializability, and avoids cascading abort
+    
+    Deadlocks example: see L35.pdf p13
+
+    Deadlocks avoidance
+        Solution 1: timeout and abort 
+            A transaction self aborts after waiting for a timeout
+            Simple and effective.
+
+        Solution 2: deadlock detection
+            Maintain a wait-for graph:
+                a node is a transaction
+                an edge is a wait-for dependency
+            Precise in detecting cycles, but cycle detection can become a bottleneck
+
+        Solution 3: Deadlock prevention 2PL
+            e.g., NO_WAIT, WAIT_DIE, WOULD_WAIT
+
+            NO_WAIT: 
+                self abort the requesting transaction whenever a lock conflict occur
+            
+            Timestamp-based deadlock prevention
+                Each transaction is assigned a unique (and monotonic) timestamp.
+                T1 requests a lock owned by T2.
+
+                - WAIT_DIE: 
+                    if T1.ts < T2.ts:
+                        T1 waits (i.e., WAIT)
+                    else if T1.ts > T2.ts:
+                        T1 self aborts (i.e., DIE)
+                
+                - WOULD_WAIT
+                    if T1.ts < T2.ts:
+                        T2 aborts (i.e., WOULD)
+                    else if T1.ts > T2.ts:
+                        T1 waits (i.e., WAIT)
+
+    Isolation revisit
+        long_lock:  released only at the end of the transaction
+        short_lock: released immediately after the current access
+            - short_lock may violate 2PL
+
+                            locks       dirty reads     non-repeatable/fuzzy reads
+        serializable        long-X          no              no
+                            long-R          no              no
+        read_committed      long-X          no              yes
+                            short-R         no              yes
+        read_uncommitted    long-X          yes             yes
+
+Optimistic concurrency control (OCC)
+    Pessimistic: resolve conflicts eagerly
+        Overhead
+            acquiring/releasing locks
+            maintaining lock metadata
+        read-only transactions acquire locks
+        deadlocks
+        limited concurrency
+        read workloads have low contention and locking is unnecessary
+    
+    Optimistic
+        Ignore conflicts during a transaction's execution and resolve conflicts 
+        lazily only when at a transaction's completion time
+
+        Goal: eliminating pessimistic locking
+
+        Three executing phases
+          - read
+                read from the db
+                for a write, write to a local data structure - write set; the db
+                is not modified
+
+          - validation
+                Atomically validate that accessed tuples have not been changed
+
+          - write
+                execute the write phase only if validation passes
+                copy values in the write set back to db
+
+        Example skipped (p27)
+
+Multi-version concurrency control (MVCC)
+
+    Single-version DBMS maintains only the latest version;
+    MVCC Maintains multiple versions of each tuple
+        read-only txns do not need to hold locks
