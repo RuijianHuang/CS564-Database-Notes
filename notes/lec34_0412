@@ -1,0 +1,110 @@
+lec 34 04/12
+
+Weeks 12-13
+    Transaction_Management I        // this
+        Basic concept
+        ACID properties
+
+    Transaction_Management II
+        Concurrency control
+
+    Transaction_Management III
+        Logging
+
+Outline
+    Basic concept
+    ACID properties
+      - Atomicity
+      - Consistency
+      - Isolation
+      - Durability
+
+How to modify database states?
+    Transactions
+        A sequenc eof many actions considered to be one atomic unit of work
+    
+    Operations
+        read, write, insert, delete
+        special actions:
+            begin, commit, abort
+
+    Example
+        BEGIN TRANSACTION;
+            READ(A)
+            WRITE(B)
+            INSERT(C) -> R
+            {...SQL...}
+        COMMIT/ABORT;
+    SQL example
+        In SQL, multple statements can be grouped together as a transaction;
+            BEGIN TRANSACTION;
+                UPDATE account
+                    SET balance = balance - 100
+                    WHERE account_no = 1;
+                UPDATE account
+                    SET balance = balance + 100
+                    WHERE account_no = 2;
+            COMMIT;
+
+Transactions use cases
+    Bank transfer of money between 2 accounts
+    Purchase a group pf products online
+    Book flight tickets
+    Register for a class (either wl or allocated)
+
+Transactions Properties
+    ACID
+        Atomicity
+            All actions in the TXN happen, or none happen
+            Two possible outcomes for a TXN
+                - commit: all the changes are made
+                - abort: no changes are made
+
+        Consistency
+            A db in a consistent state will remain in a consistent state after the TXN
+            i.e., integrity constraints are maintained
+            e.g.,
+                account number is unique
+                stock amount cannot be negative
+                a foreign key refers to a non-existing primary key
+
+        Isolation
+            The execution of one TXN is isolated from other (possibly 
+            interleaved) TXNs.
+            e.g.,
+                Serializability
+                    Schedule of concurrent transactions is equivalent to some 
+                    serial schedule
+
+        Durability
+            Once a TXN commits, its effects must persist.
+            e.g.,
+                if checking.balance > 100
+                    checking.balance -= 100
+                    saving.balance += 100
+
+            if server crashes, should recover
+
+Isolation - Serializability
+    Strong isolation level: Serializability
+        - Schedule of concurrent transactions is equivalent to some serial 
+          schedule; (i.e., need serial order instead of concurrent)
+    
+    Example
+                            T1: R(A)    W(B)
+                            T2:     R(C)    W(D)
+        equivalent to 
+                            R(A) W(B) R(C) W(D) or 
+                            R(C) W(D) R(A) W(B)
+
+    Serializability examples: see pdf
+        Check if the schedule is equivalent to some serial schedule (e.g., T1->T2)
+
+    Read Committed:
+        Any data read is committed at the moment it is read.
+
+    Read Uncommitted:
+        Dirty reads are allowed, namely, a transaction may see not-yet-committed
+        changed made by other transactions.
+
+
