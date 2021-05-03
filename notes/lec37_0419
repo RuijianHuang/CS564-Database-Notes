@@ -1,0 +1,92 @@
+lec 37 04/19
+
+Weeks 12-13
+    Transaction_Management I
+        Basic concept
+        ACID properties
+
+    Transaction_Management II
+        Concurrency control
+
+    Transaction_Management III  // this
+        Logging
+
+Outline
+    Durability
+        write-ahead logging
+    Buffer management policies
+        steal vs. no_steal
+        force vs. no_force
+    ARIES
+
+Durability
+    Definition
+        The database must recover to a valid state no matter when a crash occurs
+        i.e.,
+            committed transactions should persist
+            uncommitted transactions should roll back
+
+    write-ahead logging
+        on a crash, data in disk persists, data in mem disappears.
+
+        write-ahead logging
+          > flush the log record for an update before the corresponding data 
+            page gets to disk
+          > write all log records for a transaction before commit.
+        
+Buffer management policy
+    steal
+        Dirty pages can be flushed to disk before the transaction commits.
+         
+        Advantage:   Other transactions can use the buffer slot in DRAM
+        Challenge:   System crashes after flushing dirty pages but before the 
+                     transaction commits.
+        Consequence: Dirty data on disk
+        Solution:    UNDO logging before each update
+
+    no_steal
+        Dirty pages stay in DRAM until the transaction commits.
+
+    force
+        All dirty pages must be flushed when the transaction commits
+
+    no_force
+        Dirty pages may stay in mem after the transaction commits
+
+        Advantage:   Reduce #random IO
+        Challenge:   System crashes after the transaction commits but before the dirty 
+                     pages are flushed.
+        Consequence: Missing updates from committed transactions
+        Solution:    REDO logging before each update.
+
+    Flushing logs can bemuch cheaper than flushing data pages
+      > Log record can be much smaller than a data page
+      > Logging incurs sequential IO, data pages incur random OP
+
+    Policy combinations
+        see p20+
+
+    Other considerations
+        Checkpointing 
+            A checkpoint is a snapshot of the db
+            Reduces recovery time: start from the last checkpoint
+            ARIES support fuzzy checkpoint:
+                Checkpoints taken asynchronously
+
+        
+ARIES Recovery
+    Goal:
+        Bring the db to the state before the crash (REDO phase) and
+        rollback uncommitted transactions (UNDO phase)
+
+    Start from the last complete checkpoint
+        - Anslysis phase:
+            rebuild transaction table (for undo phase) and dirty page table 
+            (for redo phase)
+
+        - REDO phase
+            redo transactions whose effects may not be persistent before crash
+
+        - UNDO phase
+            undo transactions that did not commit before crash
+
